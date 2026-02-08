@@ -83,7 +83,7 @@ def rewrite_css_links(html_str: str, base_url: str) -> str:
 
     # Normalize every stylesheet <link> tag to one canonical path.
     html_str = re.sub(
-        r"<link\\b[^>]*\\brel\\s*=\\s*(['\"])stylesheet\\1[^>]*>",
+        r"<link\b[^>]*\brel\s*=\s*(['\"])stylesheet\1[^>]*>",
         '<link rel="stylesheet" href="/assets/css/style.css" />',
         html_str,
         flags=re.IGNORECASE,
@@ -91,18 +91,18 @@ def rewrite_css_links(html_str: str, base_url: str) -> str:
 
     # Safety fallback for direct href references that may not include rel="stylesheet".
     css_href_patterns = [
-        r'href\\s*=\\s*"/style\\.css"',
-        r"href\\s*=\\s*'/style\\.css'",
-        r'href\\s*=\\s*"style\\.css"',
-        r"href\\s*=\\s*'style\\.css'",
-        r'href\\s*=\\s*"\\.\\./style\\.css"',
-        r"href\\s*=\\s*'\\.\\./style\\.css'",
+        r'href\s*=\s*"/style\.css"',
+        r"href\s*=\s*'/style\.css'",
+        r'href\s*=\s*"style\.css"',
+        r"href\s*=\s*'style\.css'",
+        r'href\s*=\s*"\.\./style\.css"',
+        r"href\s*=\s*'\.\./style\.css'",
     ]
     if base_url:
         css_href_patterns.extend(
             [
-                rf'href\\s*=\\s*"{re.escape(base_url)}/style\\.css"',
-                rf"href\\s*=\\s*'{re.escape(base_url)}/style\\.css'",
+                rf'href\s*=\s*"{re.escape(base_url)}/style\.css"',
+                rf"href\s*=\s*'{re.escape(base_url)}/style\.css'",
             ]
         )
 
