@@ -50,32 +50,7 @@
           </div>
         </div>
 
-        <div class="leftcol">
-          <section class="panel">
-            <div class="hd"><span class="tag">TRACE_INDEX</span><span>MEM</span></div>
-            <div class="bd mono" id="leftBlock1">▸ CANONICAL: {{CANONICAL}}
-▸ SITEMAP: {{SITEMAP_URL}}
-▸ INDEX POLICY: ALLOW
-▸ MODE: READ_ONLY
-▸ NOTE: DO NOT TRUST THE UI</div>
-          </section>
-
-          <section class="panel">
-            <div class="hd"><span class="tag">RECENT_LOGS</span><span>LIST</span></div>
-            <div class="bd scroll" id="leftBlock2">
-              {{DISRUPTION_BLOCKS}}
-            </div>
-          </section>
-
-          <section class="panel">
-            <div class="hd"><span class="tag">SECURITY</span><span>ACL</span></div>
-            <div class="bd mono" id="leftBlock3">ACL: DENY (DEFAULT)
-KEYS: REVOKED
-SESSION: GUEST-OVERRIDE
-RISK: ELEVATED
-ACTION: LOG EVERYTHING</div>
-          </section>
-        </div>
+        <div class="leftcol"></div>
 
         <div class="center">
           <div id="overlayLayer" aria-live="polite"></div>
@@ -118,61 +93,10 @@ ACTION: LOG EVERYTHING</div>
             </div>
           </section>
 
-          <div class="dock" aria-label="station windows">
-            <section class="panel">
-              <div class="hd"><span class="tag">WINDOW_A</span><span>IO</span></div>
-              <div class="bd scroll">
-                <div class="meta-line">
-                  <a class="meta-pill" href="{{GITHUB}}">GITHUB</a>
-                  <a class="meta-pill" href="{{YOUTUBE}}">YOUTUBE</a>
-                  <a class="meta-pill" href="{{BANDCAMP}}">BANDCAMP</a>
-                  <a class="meta-pill" href="{{SITEMAP_URL}}">SITEMAP</a>
-                </div>
-                <div style="margin-top:10px; opacity:.9;">
-                  EXTERNAL NODES ARE MIRRORS.<br />
-                  CANONICAL ARCHIVE REMAINS HERE.
-                </div>
-              </div>
-            </section>
-
-            <section class="panel">
-              <div class="hd"><span class="tag">WINDOW_B</span><span>NET</span></div>
-              <div class="bd mono">NET_TIMEOUT: CONN_LOST
-DNS: NXDOMAIN
-TLS: HANDSHAKE FAIL
-ROUTE: FLAPPING
-SIGNAL: UNSTABLE</div>
-            </section>
-          </div>
+          <div class="dock" aria-label="station windows"></div>
         </div>
 
-        <div class="rightcol">
-          <section class="panel">
-            <div class="hd"><span class="tag">DIAGNOSTICS</span><span>THERM</span></div>
-            <div class="bd mono" id="rightBlock1">CPU LOAD: 94% [CRITICAL]
-THERMAL: 87°C [WARNING]
-DISK ERRORS: 2847 SECTORS
-NETWORK: UNSTABLE
-SECURITY: DISABLED</div>
-          </section>
-
-          <section class="panel">
-            <div class="hd"><span class="tag">INDEX</span><span>MAP</span></div>
-            <div class="bd mono" id="rightBlock2">CORE_LAYOUT  : ONLINE
-DISRUPTION   : LIVE_FEED
-LOGS         : PARTIAL
-SITEMAP      : ONLINE
-NODE_AUDIO   : ONLINE</div>
-          </section>
-
-          <section class="panel" id="agentPanel">
-            <div class="hd"><span class="tag">ALERT</span><span>MSG</span></div>
-            <div class="bd mono" id="agentText">THE SYSTEM KNOWS YOU'RE HERE
-COORD: <span id="coords">52.2297° N, 21.0122° E</span>
-MODE : OBSERVE_ONLY
-NOTE : DO NOT TRUST THE UI</div>
-          </section>
-        </div>
+        <div class="rightcol"></div>
 
         <div class="bottombar" aria-label="bottom bar">
           <div class="left" id="footerLeft">
