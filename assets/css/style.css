@@ -555,6 +555,8 @@ body::after{
   line-height: 1.75;
   letter-spacing: .025em;
   font-weight: 400;
+  overflow-y: auto;
+  max-height: 60vh;
   white-space: pre-wrap; /* WAŻNE: łamie linie, zachowuje formatowanie */
   word-wrap: break-word;
   overflow-wrap: break-word;
