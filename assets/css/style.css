@@ -299,11 +299,18 @@ body::after{
 .center{
   grid-area:center;
   display:grid;
-  grid-template-rows: minmax(auto, max-content) 1fr;
+  grid-template-rows:
+    auto
+    minmax(320px, 2fr)
+    1fr;
   gap: var(--gap);
   align-content:stretch;
   min-width:0;
   min-height:0;
+}
+
+#indexLogPanel{
+  height: 100%;
 }
 
 /* Hero - default (for index/series pages) */
@@ -470,8 +477,7 @@ body::after{
   gap: var(--gap);
   min-width:0;
   min-height:0;
-  flex: 1;
-  min-height: 0;
+  align-content:start;
 }
 .dock.dock-wide{ 
   grid-template-columns: 1fr;
@@ -536,10 +542,10 @@ body::after{
 
 /* Keep log content casing intact */
 .log-text, .log-text *{ text-transform:none; }
-.log-text{
+#indexLogPanel .log-text{
   color: rgba(185,214,223,.92);
-  font-size: 18px;
-  line-height: 1.85;
+  font-size: clamp(16px, 1.05vw, 19px);
+  line-height: 1.75;
   letter-spacing: .025em;
   font-weight: 400;
   white-space: pre-wrap; /* WAŻNE: łamie linie, zachowuje formatowanie */
