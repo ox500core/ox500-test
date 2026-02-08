@@ -19,6 +19,14 @@
   <meta name="twitter:card" content="summary_large_image" />
 
   <link rel="stylesheet" href="/assets/css/style.css" />
+  <style>
+    #logText {
+      scrollbar-width: none;
+    }
+    #logText::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
 
   <script type="application/ld+json">{{DISRUPTION_SERIES_JSONLD}}</script>
 </head>
@@ -341,6 +349,57 @@ NOTE : DO NOT TRUST THE UI</div>
     }
     setTimeout(doGlitch, 2200);
   }
+})();
+</script>
+<script>
+(function(){
+  const el = document.getElementById('logText');
+  if (!el) return;
+
+  const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (prefersReduced) return;
+
+  let paused = false;
+  let manualPauseTimeout = null;
+  let rafId = null;
+  const step = 0.2;
+
+  function pauseForManualScroll(){
+    paused = true;
+    if (manualPauseTimeout) clearTimeout(manualPauseTimeout);
+    manualPauseTimeout = setTimeout(() => {
+      paused = false;
+      manualPauseTimeout = null;
+    }, 3000);
+  }
+
+  function animate(){
+    const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
+
+    if (!paused && maxScroll > 0){
+      if (el.scrollTop >= maxScroll - step){
+        el.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        el.scrollTop += step;
+      }
+    }
+
+    rafId = requestAnimationFrame(animate);
+  }
+
+  el.addEventListener('mouseenter', () => { paused = true; }, { passive: true });
+  el.addEventListener('mouseleave', () => {
+    if (!manualPauseTimeout) paused = false;
+  }, { passive: true });
+  el.addEventListener('wheel', pauseForManualScroll, { passive: true });
+  el.addEventListener('touchmove', pauseForManualScroll, { passive: true });
+
+  rafId = requestAnimationFrame(animate);
+
+  window.addEventListener('beforeunload', () => {
+    if (rafId !== null) cancelAnimationFrame(rafId);
+    if (manualPauseTimeout) clearTimeout(manualPauseTimeout);
+  }, { passive: true });
 })();
 </script>
 </body>
