@@ -103,11 +103,23 @@ ACTION: LOG EVERYTHING</div>
             </div>
           </section>
 
-          <div class="dock" aria-label="station windows">
-            <div class="meta-line" id="logHeader">
-              <span class="meta-pill">ACTIVE LOG VIEW</span>
-              <a class="meta-pill" href="{{LATEST_LOG_URL}}">OPEN LOG PAGE</a>
+          <div class="meta-line" id="logHeader">
+            <span class="meta-pill">ACTIVE LOG VIEW</span>
+            <a class="meta-pill" href="{{LATEST_LOG_URL}}">OPEN LOG PAGE</a>
+          </div>
+
+          <section class="panel" id="indexLogPanel">
+            <div class="hd"><span class="tag">ACTIVE_LOG</span><span id="activeLogId">LOG {{LATEST_LOG_ID}}</span></div>
+            <div class="bd scroll log-text" id="logText">
+              {{LATEST_LOG_TEXT}}
             </div>
+            <div class="log-nav" aria-label="log navigation">
+              <a class="meta-pill" href="{{LATEST_LOG_PREV_URL}}" id="logPrev" {{LATEST_LOG_PREV_ATTRS}}>← PREVIOUS</a>
+              <a class="meta-pill" href="{{LATEST_LOG_NEXT_URL}}" id="logNext" {{LATEST_LOG_NEXT_ATTRS}}>NEXT →</a>
+            </div>
+          </section>
+
+          <div class="dock" aria-label="station windows">
             <section class="panel">
               <div class="hd"><span class="tag">WINDOW_A</span><span>IO</span></div>
               <div class="bd scroll">
@@ -131,17 +143,6 @@ DNS: NXDOMAIN
 TLS: HANDSHAKE FAIL
 ROUTE: FLAPPING
 SIGNAL: UNSTABLE</div>
-            </section>
-
-            <section class="panel" id="indexLogPanel">
-              <div class="hd"><span class="tag">ACTIVE_LOG</span><span id="activeLogId">LOG {{LATEST_LOG_ID}}</span></div>
-              <div class="bd scroll log-text" id="logText">
-                {{LATEST_LOG_TEXT}}
-              </div>
-              <div class="log-nav" aria-label="log navigation">
-                <a class="meta-pill" href="{{LATEST_LOG_PREV_URL}}" id="logPrev" {{LATEST_LOG_PREV_ATTRS}}>← PREVIOUS</a>
-                <a class="meta-pill" href="{{LATEST_LOG_NEXT_URL}}" id="logNext" {{LATEST_LOG_NEXT_ATTRS}}>NEXT →</a>
-              </div>
             </section>
           </div>
         </div>
