@@ -77,26 +77,37 @@ def render(template: str, mapping: dict) -> str:
 
 
 def rewrite_css_links(html_str: str, base_url: str) -> str:
-    """Rewrite any hardcoded /style.css references to /assets/css/style.css.
-
-    This lets you migrate CSS location without immediately editing every template,
-    and keeps fallback templates working.
-    """
+    """Normalize all stylesheet links to /assets/css/style.css."""
     if not html_str:
         return html_str
 
-    # Common absolute + relative patterns
-    html_str = html_str.replace('href="/style.css"', 'href="/assets/css/style.css"')
-    html_str = html_str.replace("href='/style.css'", "href='/assets/css/style.css'")
+    # Normalize every stylesheet <link> tag to one canonical path.
+    html_str = re.sub(
+        r"<link\\b[^>]*\\brel\\s*=\\s*(['\"])stylesheet\\1[^>]*>",
+        '<link rel="stylesheet" href="/assets/css/style.css" />',
+        html_str,
+        flags=re.IGNORECASE,
+    )
 
-    # Replace absolute base_url/style.css (if present)
+    # Safety fallback for direct href references that may not include rel="stylesheet".
+    css_href_patterns = [
+        r'href\\s*=\\s*"/style\\.css"',
+        r"href\\s*=\\s*'/style\\.css'",
+        r'href\\s*=\\s*"style\\.css"',
+        r"href\\s*=\\s*'style\\.css'",
+        r'href\\s*=\\s*"\\.\\./style\\.css"',
+        r"href\\s*=\\s*'\\.\\./style\\.css'",
+    ]
     if base_url:
-        html_str = html_str.replace(f'href="{base_url}/style.css"', f'href="{base_url}/assets/css/style.css"')
-        html_str = html_str.replace(f"href='{base_url}/style.css'", f"href='{base_url}/assets/css/style.css'")
+        css_href_patterns.extend(
+            [
+                rf'href\\s*=\\s*"{re.escape(base_url)}/style\\.css"',
+                rf"href\\s*=\\s*'{re.escape(base_url)}/style\\.css'",
+            ]
+        )
 
-    # Historical hardcode
-    html_str = html_str.replace('href="https://ox500.com/style.css"', 'href="https://ox500.com/assets/css/style.css"')
-    html_str = html_str.replace("href='https://ox500.com/style.css'", "href='https://ox500.com/assets/css/style.css'")
+    for pattern in css_href_patterns:
+        html_str = re.sub(pattern, 'href="/assets/css/style.css"', html_str, flags=re.IGNORECASE)
 
     return html_str
 
@@ -289,16 +300,10 @@ def build():
         t_node = read_text(t_series_path)
 
     # ===== COPY CSS =====
-    css_src = ROOT / "style.css"
+    css_src = ROOT / "assets" / "css" / "style.css"
     if css_src.exists():
         # Main stylesheet lives under /assets/css/style.css
         write_text(ASSETS_CSS_DIST, read_text(css_src))
-
-        # Backward-compat shim: keep /style.css as a tiny forwarder so old links don't break
-        # (Safe for SEO and browsers; keeps existing external references alive.)
-        write_text(DIST / "style.css", """/* OX500 shim — moved to /assets/css/style.css */
-@import url("/assets/css/style.css");
-""")
 
     sitemap_entries = []
 
