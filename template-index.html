@@ -353,7 +353,7 @@ NOTE : DO NOT TRUST THE UI</div>
   let paused = false;
   let manualPauseTimeout = null;
   let rafId = null;
-  const step = 0.2;
+  const step = 0.6;
 
   function pauseForManualScroll(){
     paused = true;
@@ -378,10 +378,6 @@ NOTE : DO NOT TRUST THE UI</div>
     rafId = requestAnimationFrame(animate);
   }
 
-  el.addEventListener('mouseenter', () => { paused = true; }, { passive: true });
-  el.addEventListener('mouseleave', () => {
-    if (!manualPauseTimeout) paused = false;
-  }, { passive: true });
   el.addEventListener('wheel', pauseForManualScroll, { passive: true });
   el.addEventListener('touchmove', pauseForManualScroll, { passive: true });
 
