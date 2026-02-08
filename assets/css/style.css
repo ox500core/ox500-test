@@ -141,7 +141,7 @@ body::after{
   display:grid;
   gap: var(--gap);
   padding: var(--pad);
-  grid-template-columns: minmax(190px, 320px) 1fr minmax(190px, 320px);
+  grid-template-columns: minmax(60px, 120px) 1fr minmax(60px, 120px);
   grid-template-rows: auto 1fr auto;
   grid-template-areas:
     "top top top"
