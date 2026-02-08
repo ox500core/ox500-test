@@ -267,12 +267,21 @@ body::after{
 
 .center{
   grid-area:center;
+  position:relative;
   display:grid;
   grid-template-rows: auto 1fr;
   gap: var(--gap);
   align-content:stretch;
   min-width:0;
   min-height:0;
+}
+
+#overlayLayer{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  display:none;
+  z-index:2;
 }
 
 /* Hero */
