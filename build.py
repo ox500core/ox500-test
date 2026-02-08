@@ -589,6 +589,32 @@ def build():
         sitemap_entries.append((canonical, newest_date))
 
     # ===== HOME: ONLY LAST DISRUPTIONS =====
+    latest_log = logs_sorted[0] if logs_sorted else None
+
+    latest_log_id = ""
+    latest_log_text = ""
+    latest_log_url = ""
+    latest_log_prev_url = ""
+    latest_log_next_url = ""
+    latest_log_prev_attrs = 'aria-disabled="true" tabindex="-1"'
+    latest_log_next_attrs = 'aria-disabled="true" tabindex="-1"'
+
+    if latest_log:
+        latest_log_id = html.escape(latest_log["id"])
+        latest_log_text = format_log_text(latest_log.get("text", ""))
+        latest_log_url = make_url_path(make_rel_path(latest_log))
+
+        # logs_sorted is newest first, so PREV = older (index + 1), NEXT = newer (index - 1)
+        prev_log = logs_sorted[1] if len(logs_sorted) > 1 else None
+        next_log = None
+
+        if prev_log:
+            latest_log_prev_url = make_url_path(make_rel_path(prev_log))
+            latest_log_prev_attrs = ""
+        if next_log:
+            latest_log_next_url = make_url_path(make_rel_path(next_log))
+            latest_log_next_attrs = ""
+
     blocks = []
 
     for idx, d_slug in enumerate(disruption_order[:HOME_DISRUPTION_LIMIT]):
@@ -675,6 +701,13 @@ def build():
             "GITHUB": github_repo,
             "DISRUPTION_BLOCKS": "\n\n".join(blocks),
             "DISRUPTION_SERIES_JSONLD": json.dumps(disruption_series_jsonld, ensure_ascii=False, indent=2),
+            "LATEST_LOG_ID": latest_log_id,
+            "LATEST_LOG_TEXT": latest_log_text,
+            "LATEST_LOG_URL": latest_log_url,
+            "LATEST_LOG_PREV_URL": latest_log_prev_url,
+            "LATEST_LOG_NEXT_URL": latest_log_next_url,
+            "LATEST_LOG_PREV_ATTRS": latest_log_prev_attrs,
+            "LATEST_LOG_NEXT_ATTRS": latest_log_next_attrs,
         },
     )
     index_html = rewrite_css_links(index_html, base_url)
