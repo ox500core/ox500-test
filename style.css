@@ -269,10 +269,7 @@ body::after{
   grid-area:center;
   position:relative;
   display:grid;
-  grid-template-rows:
-    auto
-    minmax(320px, 2fr)
-    1fr;
+  grid-template-rows: auto auto 1fr;
   gap: var(--gap);
   align-content:stretch;
   min-width:0;
@@ -280,7 +277,8 @@ body::after{
 }
 
 #indexLogPanel{
-  height: 100%;
+  height:auto;
+  min-height: 320px;
 }
 
 #overlayLayer{
@@ -844,9 +842,6 @@ a:hover{ color: rgba(255,255,255,.92); }
 
 @media (min-width: 980px){
   .center{
-    grid-template-rows:
-      auto
-      minmax(320px, 2fr)
-      1fr;
+    grid-template-rows: auto auto 1fr;
   }
 }

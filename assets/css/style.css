@@ -298,11 +298,9 @@ body::after{
 
 .center{
   grid-area:center;
+  position:relative;
   display:grid;
-  grid-template-rows:
-    auto
-    minmax(320px, 2fr)
-    1fr;
+  grid-template-rows: auto auto 1fr;
   gap: var(--gap);
   align-content:stretch;
   min-width:0;
@@ -310,7 +308,16 @@ body::after{
 }
 
 #indexLogPanel{
-  height: 100%;
+  height:auto;
+  min-height: 320px;
+}
+
+#overlayLayer{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  display:none;
+  z-index:2;
 }
 
 /* Hero - default (for index/series pages) */
