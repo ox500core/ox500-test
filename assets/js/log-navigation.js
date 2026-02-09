@@ -25,6 +25,7 @@
   let resizeBound = false;
   let wheelBound = false;
   let visibilityBound = false;
+  let recentLogsResizeBound = false;
 
   function escapeHtml(s) {
     return String(s || "")
@@ -33,6 +34,47 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
+  }
+
+  function truncateFixed(text, maxChars = 28) {
+    if (!text) return "";
+    const t = String(text);
+    if (t.length <= maxChars) return t.padEnd(maxChars, " ");
+    return t.slice(0, maxChars - 3) + "...";
+  }
+
+  function getMonospaceCharWidth(sampleEl) {
+    const probe = document.createElement("span");
+    probe.textContent = "0000000000";
+    probe.style.visibility = "hidden";
+    probe.style.position = "absolute";
+    probe.style.whiteSpace = "pre";
+    sampleEl.appendChild(probe);
+    const width = probe.getBoundingClientRect().width / 10;
+    probe.remove();
+    return width > 0 ? width : 8;
+  }
+
+  function applyRecentLogsFixedTruncation() {
+    const lines = document.querySelectorAll(".recent-logs .log-line");
+    lines.forEach((line) => {
+      const idEl = line.querySelector(".log-id");
+      const tag = line.querySelector(".log-tag");
+      if (!idEl || !tag) return;
+
+      if (!tag.dataset.fullTitle) {
+        tag.dataset.fullTitle = (tag.textContent || "").trim();
+      }
+
+      const fullTitle = tag.dataset.fullTitle;
+      const charWidth = getMonospaceCharWidth(tag);
+      const idWidth = idEl.getBoundingClientRect().width;
+      const lineWidth = line.getBoundingClientRect().width;
+      const gapPx = 8;
+      const availablePx = Math.max(0, lineWidth - idWidth - gapPx);
+      const maxChars = Math.max(4, Math.floor(availablePx / charWidth));
+      tag.textContent = truncateFixed(fullTitle, maxChars);
+    });
   }
 
   function sortLogsNewestFirst(items) {
@@ -309,6 +351,12 @@
   prevBtn.addEventListener("click", () => {
     goOlder().catch(() => {});
   });
+
+  applyRecentLogsFixedTruncation();
+  if (!recentLogsResizeBound) {
+    window.addEventListener("resize", applyRecentLogsFixedTruncation, { passive: true });
+    recentLogsResizeBound = true;
+  }
 
   fetchPagedJson("logs-pages-meta.json")
     .then((meta) => {

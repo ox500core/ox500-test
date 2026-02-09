@@ -154,6 +154,10 @@ body::after{
     "bottom bottom bottom";
 }
 
+.grid.grid-sidebars-wide{
+  grid-template-columns: minmax(190px, 260px) 1fr minmax(190px, 260px);
+}
+
 .topbar{
   grid-area: top;
   display:flex;
@@ -765,8 +769,6 @@ body::after{
   margin:0 !important;
   border-radius:0;
   box-shadow:none;
-  white-space: nowrap !important;
-  overflow: hidden;
   line-height: 1.6 !important;
   letter-spacing: .08em !important;
 }
@@ -784,23 +786,41 @@ body::after{
 }
 
 .recent-logs .log-line .log-id{
-  display:inline;
+  display:inline-block;
   line-height: inherit;
+  margin-right:.45em;
+  white-space: nowrap;
 }
 
 .recent-logs .log-line .log-id::after{
-  content: " ";
+  content: "";
 }
 
 .recent-logs .log-line .log-tag{
-  display:inline-block;
-  min-width: auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display:block;
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: pre;
   line-height: inherit;
-  max-width: calc(100% - 120px);
+  max-width: none;
   vertical-align: bottom;
+  letter-spacing: 0 !important;
+}
+
+.recent-logs .log-line{
+  display:flex;
+  align-items:baseline;
+  width:100%;
+}
+
+.recent-logs .log-line .log-id{
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.recent-logs .log-line .log-tag{
+  flex: 1 1 auto;
 }
 
 .bd.scroll.log-text{

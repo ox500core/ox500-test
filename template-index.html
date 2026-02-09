@@ -23,7 +23,7 @@
 
   <link rel="stylesheet" href="/assets/css/style.css" />
   <script type="application/ld+json">{{DISRUPTION_SERIES_JSONLD}}</script>
-  </head>
+</head>
 <body data-log-level="{{LATEST_LOG_ID}}" data-core-start="{{SYSTEM_CORE_START_UTC}}">
   <div class="vignette" aria-hidden="true"></div>
   <div class="noise" aria-hidden="true"></div>
@@ -40,7 +40,7 @@
         <span class="live-feed-line" id="feed1">AUTH_FAIL: USER_UNKNOWN</span>
       </div>
 
-      <div class="grid">
+      <div class="grid grid-sidebars-wide">
         <div class="topbar" aria-label="system bar">
           <div class="left">
             <span class="pill"><b>LOG</b> 02807-45 080719</span>
@@ -55,18 +55,14 @@
           </div>
         </div>
 
-<<<<<<< HEAD
-        <div class="leftcol"></div>
-=======
         <div class="leftcol left-column">
-<section class="panel recent-logs">
+          <section class="panel recent-logs">
             <div class="hd"><span class="tag">RECENT_LOGS</span><span>LIST</span></div>
             <div class="bd" id="leftBlock2">
               {{DISRUPTION_BLOCKS}}
             </div>
           </section>
         </div>
->>>>>>> b7fe575 (Harden build, unify data paths, clean templates/CSS, optimize JS lifecycle, improve SEO and repo hygiene)
 
         <div class="center">
           <div id="overlayLayer" aria-live="polite"></div>
@@ -84,31 +80,8 @@
               <a class="btn" href="{{YOUTUBE}}" data-tab="yt">TRANSMIT</a>
               <a class="btn" href="{{BANDCAMP}}" data-tab="bc">NODE_AUDIO</a>
             </div>
-
           </section>
 
-<<<<<<< HEAD
-          <div class="meta-line" id="logHeader">
-            <span class="meta-pill">ACTIVE LOG VIEW</span>
-            <a class="meta-pill" href="{{LATEST_LOG_URL}}">OPEN LOG PAGE</a>
-          </div>
-
-          <section class="panel" id="indexLogPanel">
-            <div class="hd"><span class="tag">ACTIVE_LOG</span><span id="activeLogId">LOG {{LATEST_LOG_ID}}</span></div>
-            <div class="bd scroll log-text" id="logText">
-              {{LATEST_LOG_TEXT}}
-            </div>
-            <div class="log-nav" aria-label="log navigation">
-              <a class="meta-pill" href="{{LATEST_LOG_PREV_URL}}" id="logPrev" {{LATEST_LOG_PREV_ATTRS}}>← PREVIOUS</a>
-              <a class="meta-pill" href="{{LATEST_LOG_NEXT_URL}}" id="logNext" {{LATEST_LOG_NEXT_ATTRS}}>NEXT →</a>
-            </div>
-          </section>
-
-          <div class="dock" aria-label="station windows"></div>
-        </div>
-
-        <div class="rightcol"></div>
-=======
           <div class="dock dock-wide" aria-label="station windows">
             <section class="panel" id="indexLogPanel">
               <div class="hd">
@@ -156,7 +129,6 @@ INPUT CHANNEL: DISABLED
 AGENT LINK: DETACHED</div>
           </section>
         </div>
->>>>>>> b7fe575 (Harden build, unify data paths, clean templates/CSS, optimize JS lifecycle, improve SEO and repo hygiene)
 
         <div class="bottombar" aria-label="bottom bar">
           <div class="left" id="footerLeft">
@@ -183,16 +155,10 @@ AGENT LINK: DETACHED</div>
     </div>
   </noscript>
 
-    <script src="/assets/js/station-core.js" defer></script>
+  <script src="/assets/js/station-core.js" defer></script>
   <script src="/assets/js/uptime.js" defer></script>
   <script src="/assets/js/memory-scatter.js" defer></script>
   <script src="/assets/js/log-navigation.js" defer></script>
   <script src="/assets/js/agent.js" defer></script>
 </body>
 </html>
-
-
-
-
-
-
