@@ -1,7 +1,7 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="{{LANG}}">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#050608" />
 
@@ -17,21 +17,21 @@
   <meta property="og:image" content="{{OG_IMAGE}}" />
 
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{OG_TITLE}}" />
+  <meta name="twitter:description" content="{{OG_DESC}}" />
+  <meta name="twitter:image" content="{{OG_IMAGE}}" />
 
   <link rel="stylesheet" href="/assets/css/style.css" />
   <script type="application/ld+json">{{JSONLD}}</script>
 </head>
-<body>
+<body data-core-start="{{SYSTEM_CORE_START_UTC}}">
   <div class="vignette" aria-hidden="true"></div>
   <div class="noise" aria-hidden="true"></div>
+  <div id="boot-layer">REINDEXING MEMORY...</div>
 
   <div class="station">
-    <div class="frame" role="application" aria-label="OX500 STATION interface">
-      <div style="position:absolute;right:16px;top:12px;z-index:9;
-                  font: 11px/1.1 ui-monospace,monospace; letter-spacing:.14em;
-                  color: rgba(255,255,255,.65); opacity:.9;
-                  border:1px solid rgba(255,255,255,.10); border-radius:999px;
-                  padding:6px 10px; background: rgba(0,0,0,.28);">
+    <div class="frame" aria-label="OX500 STATION interface">
+      <div class="render-ok-badge">
         RENDER_OK
       </div>
 
@@ -44,13 +44,13 @@
           </div>
           <div class="right">
             <span class="pill">SYS <b id="sysVer">41.02</b></span>
-            <span class="pill">UPTIME <b id="uptime">00:00:00</b></span>
+            <span class="pill">CORE ACTIVE SINCE <span id="system-uptime"></span></span>
             <span class="pill">TIME <b id="clock">--:--:--</b></span>
             <span class="pill">AVAILABLE <b id="avail">0565</b></span>
           </div>
         </div>
 
-        <div class="leftcol">
+        <div class="leftcol left-column">
           <section class="panel">
             <div class="hd"><span class="tag">TRACE_INDEX</span><span>MEM</span></div>
             <div class="bd mono">PROTOCOL: NODE_ENUMERATION
@@ -68,20 +68,13 @@ RULE: LOG EVERYTHING</div>
                 <a class="meta-pill" href="{{YOUTUBE}}">YOUTUBE</a>
                 <a class="meta-pill" href="{{BANDCAMP}}">BANDCAMP</a>
               </div>
-              <div style="margin-top:10px; opacity:.9;">
+              <div class="meta-note">
                 THIS NODE IS A FILTER.<br />
                 LOGS REMAIN INTACT.
               </div>
             </div>
           </section>
 
-          <section class="panel">
-            <div class="hd"><span class="tag">SECURITY</span><span>ACL</span></div>
-            <div class="bd mono">ACL: DENY (DEFAULT)
-KEYS: REVOKED
-SESSION: GUEST-OVERRIDE
-RISK: ELEVATED</div>
-          </section>
         </div>
 
         <div class="center">
@@ -138,10 +131,11 @@ MODE      : OBSERVE_ONLY</div>
 
           <section class="panel" id="agentPanel">
             <div class="hd"><span class="tag">ALERT</span><span>MSG</span></div>
-            <div class="bd mono" id="agentText">THE SYSTEM KNOWS YOU'RE HERE
-COORD: <span id="coords">52.2297° N, 21.0122° E</span>
-MODE : OBSERVE_ONLY
-NOTE : DO NOT TRUST THE UI</div>
+            <div class="bd" id="agentText">
+              <div id="agent-channel" data-log-id="{{CURRENT_LOG_ID}}">
+                <div class="agent-line"></div>
+              </div>
+            </div>
           </section>
         </div>
 
@@ -165,152 +159,17 @@ NOTE : DO NOT TRUST THE UI</div>
   </div>
 
   <noscript>
-    <div style="position:fixed;left:12px;right:12px;bottom:12px;padding:10px 12px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(0,0,0,.72);color:#ccc;font-family:ui-monospace,monospace;z-index:999">
+    <div class="noscript-notice">
       JS is disabled — interface runs in static mode.
     </div>
   </noscript>
 
-  <script>
-(function(){
-  const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  const $ = (id) => document.getElementById(id);
-
-  const clock = $('clock');
-  const uptime = $('uptime');
-  const avail = $('avail');
-  const coords = $('coords');
-
-  const feedEls = [ $('feed1'), $('feed2'), $('feed3') ].filter(Boolean);
-  const hero = $('hero');
-  const title = $('title');
-  const status = $('status');
-
-  const FEED = [
-    'PROC_KILL: 0xA42F... TERMINATED',
-    'MEM_LEAK: SECTOR 0x7B... CRITICAL',
-    'AUTH_FAIL: USER_UNKNOWN',
-    'DISK_ERR: BLOCK 2847 UNREADABLE',
-    'NET_TIMEOUT: CONN_LOST',
-    'SYS_WARN: THERMAL THRESHOLD',
-    'DATA_CORRUPT: CRC MISMATCH',
-    'PERM_DENIED: ACCESS VIOLATION',
-    'STACK_OVERFLOW: 0x4F2A...',
-    'NULL_PTR: SEGFAULT',
-    'WATCHDOG: RESET IMMINENT',
-    'I/O_ERROR: DEVICE NOT READY',
-    'CACHE_MISS: PIPELINE STALL',
-    'PRIORITY_INVERSION: DEADLOCK',
-    'BUFFER_OVERRUN: 0x9C1E...',
-    'SIGNAL_11: TERMINATED',
-    'PAGE_FAULT: 0x0000...',
-    'INIT_FAIL: MODULE CORRUPT',
-    'CHECKSUM_ERR: DATA INVALID',
-    'FIRMWARE_MISMATCH: ABORT'
-  ];
-
-  const WHISPERS = [
-    "i can feel you watching",
-    "this wasn't meant for you",
-    "every click leaves a trace",
-    "you shouldn't be seeing this",
-    "this terminal is watching back"
-  ];
-
-  const start = Date.now();
-  function pad(n){ return String(n).padStart(2,'0'); }
-
-  function tick(){
-    const d = new Date();
-    const hh = pad(d.getHours());
-    const mm = pad(d.getMinutes());
-    const ss = pad(d.getSeconds());
-    if (clock) clock.textContent = `${hh}:${mm}:${ss}`;
-
-    const ms = Date.now() - start;
-    const total = Math.floor(ms/1000);
-    const h = pad(Math.floor(total/3600));
-    const m = pad(Math.floor((total%3600)/60));
-    const s = pad(total%60);
-    if (uptime) uptime.textContent = `${h}:${m}:${s}`;
-
-    if (avail && !prefersReduced && Math.random() > 0.92){
-      let v = parseInt(avail.textContent, 10) || 565;
-      v += (Math.random() > 0.5 ? 1 : -1) * (1 + Math.floor(Math.random()*2));
-      v = Math.max(120, Math.min(9999, v));
-      avail.textContent = String(v).padStart(4,'0');
-    }
-  }
-  tick();
-  setInterval(tick, 1000);
-
-  function updateCoords(){
-    if (!coords) return;
-    const lat = 52.2297 + (Math.random()*0.08 - 0.04);
-    const lon = 21.0122 + (Math.random()*0.08 - 0.04);
-    coords.textContent = `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E`;
-  }
-  updateCoords();
-  setInterval(updateCoords, 4500);
-
-  let feedIdx = 0;
-  function pushFeed(){
-    if (!feedEls.length) return;
-    const msg = FEED[Math.floor(Math.random()*FEED.length)];
-    const target = feedEls[feedIdx % feedEls.length];
-    const d = new Date();
-    const stamp = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-    target.textContent = `[${stamp}] ${msg}`;
-    target.classList.remove('pulse');
-    void target.offsetWidth;
-    target.classList.add('pulse');
-    feedIdx++;
-    const next = 6500 + Math.random()*6500;
-    setTimeout(pushFeed, next);
-  }
-  setTimeout(pushFeed, 1800);
-
-  document.querySelectorAll('.btn[data-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.btn[data-tab]').forEach(b => b.classList.remove('primary'));
-      btn.classList.add('primary');
-    }, {passive:true});
-  });
-
-  if (!prefersReduced && hero && title && status){
-    let whisperLock = false;
-
-    function doGlitch(){
-      const r = Math.random();
-
-      if (r > 0.995){
-        hero.classList.add('glitch-invert');
-        setTimeout(()=> hero.classList.remove('glitch-invert'), 55);
-      }
-
-      if (r > 0.989){
-        title.classList.add('glitch-shift');
-        setTimeout(()=> title.classList.remove('glitch-shift'), 90);
-      }
-
-      if (!whisperLock && r > 0.993){
-        whisperLock = true;
-        const text = WHISPERS[Math.floor(Math.random()*WHISPERS.length)];
-        const original = status.innerHTML;
-        status.innerHTML = `<div class="line"><span class="key">WHISPER:</span> <span class="val">${text}</span></div>`;
-        status.classList.add('glitch-dim');
-        setTimeout(()=>{
-          status.innerHTML = original;
-          status.classList.remove('glitch-dim');
-          setTimeout(()=> whisperLock = false, 60000);
-        }, 9000 + Math.random()*5000);
-      }
-
-      setTimeout(doGlitch, 1200 + Math.random()*3000);
-    }
-    setTimeout(doGlitch, 2200);
-  }
-})();
-</script>
+  <script src="/assets/js/station-core.js" defer></script>
+  <script src="/assets/js/uptime.js" defer></script>
+  <script src="/assets/js/memory-scatter.js" defer></script>
+  <script src="/assets/js/log-navigation.js" defer></script>
+  <script src="/assets/js/agent.js" defer></script>
 </body>
 </html>
+
+

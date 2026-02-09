@@ -61,12 +61,14 @@ def format_log_text(text: str) -> str:
 
 
 def read_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
 
 
 def write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
 
 
 def render(template: str, mapping: dict) -> str:
@@ -112,20 +114,58 @@ def rewrite_css_links(html_str: str, base_url: str) -> str:
     return html_str
 
 
-def normalize_date(date_str: str) -> str:
+def parse_iso_date_strict(date_str: str, context: str):
     s = (date_str or "").strip()
+    if not s:
+        raise ValueError(f"{context}: missing date")
     try:
-        d = datetime.fromisoformat(s)
-        return d.date().isoformat()
-    except Exception:
-        return datetime.now(timezone.utc).date().isoformat()
+        return datetime.fromisoformat(s).date()
+    except Exception as exc:
+        raise ValueError(f"{context}: invalid ISO date '{s}'") from exc
+
+
+def parse_log_id_strict(raw_id, context: str) -> int:
+    s = str(raw_id or "").strip()
+    if not s:
+        raise ValueError(f"{context}: missing id")
+    if not re.fullmatch(r"\d+", s):
+        raise ValueError(f"{context}: id must be numeric, got '{s}'")
+    return int(s)
+
+
+def validate_logs(logs: list, core_date):
+    errors = []
+    for idx, log in enumerate(logs):
+        ctx = f"logs[{idx}]"
+
+        try:
+            log_id_int = parse_log_id_strict(log.get("id"), f"{ctx}.id")
+            log["_id_int"] = log_id_int
+        except ValueError as exc:
+            errors.append(str(exc))
+            continue
+
+        try:
+            log_date = parse_iso_date_strict(log.get("date", ""), f"{ctx}.date (id={log.get('id', '')})")
+            log["_date_obj"] = log_date
+            log["system_age_days_at_event"] = str((log_date - core_date).days)
+        except ValueError as exc:
+            errors.append(str(exc))
+            continue
+
+    if errors:
+        preview = "\n".join(f"- {msg}" for msg in errors[:20])
+        more = f"\n... and {len(errors) - 20} more" if len(errors) > 20 else ""
+        raise ValueError(f"Build aborted. Invalid log records:\n{preview}{more}")
+
+
+def normalize_date(date_str: str) -> str:
+    d = parse_iso_date_strict(date_str, "normalize_date")
+    return d.isoformat()
 
 
 def ym_from_date(date_str: str):
-    try:
-        d = datetime.fromisoformat((date_str or "").strip())
-    except Exception:
-        d = datetime.now(timezone.utc)
+    d = parse_iso_date_strict(date_str, "ym_from_date")
     return f"{d.year:04d}", f"{d.month:02d}"
 
 
@@ -258,6 +298,12 @@ def build():
 
     cfg = json.loads(read_text(ROOT / "logs.json"))
     site = cfg["site"]
+    system_cfg = cfg["system"]
+    core_start = system_cfg["core_start_utc"].strip()
+    try:
+        core_date = datetime.fromisoformat(core_start.replace("Z", "+00:00")).date()
+    except Exception as exc:
+        raise ValueError(f"Invalid system.core_start_utc value: '{core_start}'") from exc
     logs = cfg["logs"]
 
     base_url = site["base_url"].rstrip("/")
@@ -268,24 +314,29 @@ def build():
     lang = site.get("default_lang", "en")
     site_title = site.get("site_title", "OX500 // CORE INTERFACE")
 
+    if not isinstance(logs, list):
+        raise ValueError("Invalid logs.json structure: 'logs' must be a list")
+
+    validate_logs(logs, core_date)
+
     # ===== NORMALIZE SLUGS =====
     for l in logs:
         l["slug"] = slugify(l.get("slug") or l.get("title", ""))
 
     # ===== FILTER OUT FUTURE-DATED LOGS (do not generate/publish yet) =====
     today = datetime.now(timezone.utc).date()
-    filtered = []
-    for l in logs:
-        try:
-            d = datetime.fromisoformat((l.get("date") or "").strip()).date()
-        except Exception:
-            d = today
-        if d <= today:
-            filtered.append(l)
-    logs = filtered
+    logs = [l for l in logs if l["_date_obj"] <= today]
 
     # newest first
-    logs_sorted = sorted(logs, key=lambda x: int(x["id"]), reverse=True)
+    logs_sorted = sorted(logs, key=lambda x: x["_id_int"], reverse=True)
+    logs_nav_payload = [
+        {
+            "id": l.get("id", ""),
+            "title": l.get("title", ""),
+            "text": l.get("text", ""),
+        }
+        for l in logs_sorted
+    ]
 
     t_log = read_text(ROOT / "template-log.html")
     t_index = read_text(ROOT / "template-index.html")
@@ -334,7 +385,7 @@ def build():
     # order disruptions by newest log id
     disruption_order = sorted(
         disruptions.keys(),
-        key=lambda k: int(disruptions[k]["logs"][0]["id"]),
+        key=lambda k: disruptions[k]["logs"][0]["_id_int"],
         reverse=True,
     )
 
@@ -393,6 +444,10 @@ def build():
             d_url = f"{base_url}{d_path}"
             node_meta = f'NODE: <a href="{d_path}" rel="up">{html.escape(d_name)}</a> · '
 
+        ui_state = log.get("ui_state") if isinstance(log.get("ui_state"), dict) else {}
+        log_mode = str(ui_state.get("mode") or "READ_ONLY")
+        log_state = str(ui_state.get("status") or "SYSTEM_PARTIAL")
+
         page_title = f"LOG {log['id']} // {log['title']} — OX500"
         description = f"{log.get('title', '')} — {log.get('excerpt', '')[:150]}"
         og_desc = f"{log.get('excerpt', '')[:200]}"
@@ -421,6 +476,11 @@ def build():
                 "LOG_TITLE": html.escape(log["title"]),
                 "LOG_DATE": html.escape(log.get("date", "")),
                 "LOG_TEXT": format_log_text(log.get("text", "")),
+                "SYSTEM_CORE_START_UTC": html.escape(core_start),
+                "system_age_days_at_event": html.escape(log.get("system_age_days_at_event", "")),
+                "CURRENT_LOG_ID": html.escape(log["id"]),
+                "LOG_MODE": html.escape(log_mode),
+                "LOG_STATE": html.escape(log_state),
                 "NODE_META": node_meta,
                 "FULL_NAV": full_nav,
                 "YOUTUBE": youtube,
@@ -480,6 +540,10 @@ def build():
   <meta property="og:url" content="{{CANONICAL}}" />
   <meta property="og:image" content="{{OG_IMAGE}}" />
   <meta property="og:site_name" content="OX500" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{OG_TITLE}}" />
+  <meta name="twitter:description" content="{{OG_DESC}}" />
+  <meta name="twitter:image" content="{{OG_IMAGE}}" />
 
   <link rel="stylesheet" href="/assets/css/style.css" />
 
@@ -564,6 +628,7 @@ def build():
             t_node,
             {
                 "LANG": lang,
+                "SYSTEM_CORE_START_UTC": html.escape(core_start),
                 "PAGE_TITLE": html.escape(page_title),
                 "DESCRIPTION": html.escape(description),
                 "CANONICAL": canonical,
@@ -580,6 +645,7 @@ def build():
                 ),
                 "H1": html.escape(f"DISRUPTION // {d_name} [{count}]"),
                 "META": html.escape(f"OX500 // DISRUPTION_FEED · NODE · LOGS: {count}"),
+                "CURRENT_LOG_ID": html.escape(d_logs[0]["id"]) if d_logs else "",
                 "NODE_LOG_LIST": "\n".join(node_list),
                 "YOUTUBE": youtube,
                 "BANDCAMP": bandcamp,
@@ -603,6 +669,7 @@ def build():
     latest_log_next_url = ""
     latest_log_prev_attrs = 'aria-disabled="true" tabindex="-1"'
     latest_log_next_attrs = 'aria-disabled="true" tabindex="-1"'
+    previous_log_text_plain = ""
 
     if latest_log:
         latest_log_id = html.escape(latest_log["id"])
@@ -616,6 +683,7 @@ def build():
         if prev_log:
             latest_log_prev_url = make_url_path(make_rel_path(prev_log))
             latest_log_prev_attrs = ""
+            previous_log_text_plain = " ".join(str(prev_log.get("text", "")).split())
         if next_log:
             latest_log_next_url = make_url_path(make_rel_path(next_log))
             latest_log_next_attrs = ""
@@ -691,11 +759,27 @@ def build():
         "hasPart": disruption_series_parts
     }
 
+    # Export paged lightweight log payloads for client-side navigation.
+    page_size = 50
+    total_pages = (len(logs_nav_payload) + page_size - 1) // page_size if logs_nav_payload else 0
+    for page_num in range(1, total_pages + 1):
+        start = (page_num - 1) * page_size
+        end = start + page_size
+        write_text(
+            DIST / "data" / f"logs-page-{page_num}.json",
+            json.dumps(logs_nav_payload[start:end], ensure_ascii=False),
+        )
+    write_text(
+        DIST / "data" / "logs-pages-meta.json",
+        json.dumps({"page_size": page_size, "total_pages": total_pages}, ensure_ascii=False),
+    )
+
     # IMPORTANT: template-index musi mieć {{DISRUPTION_BLOCKS}} i {{DISRUPTION_SERIES_JSONLD}}
     index_html = render(
         t_index,
         {
             "LANG": lang,
+            "SYSTEM_CORE_START_UTC": html.escape(core_start),
             "BASE_URL": base_url,
             "CANONICAL": f"{base_url}/",
             "SITEMAP_URL": f"{base_url}/sitemap.xml",
@@ -706,6 +790,7 @@ def build():
             "GITHUB": github_repo,
             "DISRUPTION_BLOCKS": "\n\n".join(blocks),
             "DISRUPTION_SERIES_JSONLD": json.dumps(disruption_series_jsonld, ensure_ascii=False, indent=2),
+            "CURRENT_LOG_ID": latest_log_id,
             "LATEST_LOG_ID": latest_log_id,
             "LATEST_LOG_TEXT": latest_log_text,
             "LATEST_LOG_URL": latest_log_url,
@@ -713,6 +798,7 @@ def build():
             "LATEST_LOG_NEXT_URL": latest_log_next_url,
             "LATEST_LOG_PREV_ATTRS": latest_log_prev_attrs,
             "LATEST_LOG_NEXT_ATTRS": latest_log_next_attrs,
+            "PREVIOUS_LOG_TEXT_PLAIN": html.escape(previous_log_text_plain),
         },
     )
     index_html = rewrite_css_links(index_html, base_url)
