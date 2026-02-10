@@ -60,6 +60,15 @@ def format_log_text(text: str) -> str:
     return '\n'.join(formatted_paragraphs)
 
 
+def first_line(text: str, max_chars: int = 150) -> str:
+    if not text:
+        return ""
+    line = str(text).splitlines()[0].strip()
+    if len(line) <= max_chars:
+        return line
+    return line[:max_chars].rstrip()
+
+
 def read_text(path: Path) -> str:
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
@@ -184,7 +193,7 @@ def disruption_display_name(raw: str) -> str:
         return ""
 
     # jeśli jest " // " bierz prawą stronę
-    if "//" in s:
+    if "//" in s and re.match(r"^\s*disruption(?:_series)?\b", s, flags=re.I):
         s = s.split("//", 1)[1].strip()
 
     # usuń typowe prefixy jeśli ktoś wpisał bez "//"
@@ -276,6 +285,17 @@ def jsonld_disruption_node(base_url, url_path, disruption_name, date, og_image, 
     return json.dumps(data, ensure_ascii=False, indent=2)
 
 
+def jsonld_log_creative_work(base_url: str, url_path: str, log_id: str) -> str:
+    data = {
+        "@context": "https://schema.org",
+        "@type": "CreativeWork",
+        "name": f"LOG {log_id}",
+        "url": f"{base_url}{url_path}",
+        "author": "OX500",
+    }
+    return json.dumps(data, ensure_ascii=False, indent=2)
+
+
 def build():
     # ===== CLEAN DIST =====
     if DIST.exists():
@@ -296,15 +316,17 @@ def build():
                 shutil.copy2(p, DIST / p.name)
 
 
-    cfg = json.loads(read_text(ROOT / "logs.json"))
-    site = cfg["site"]
-    system_cfg = cfg["system"]
-    core_start = system_cfg["core_start_utc"].strip()
+    data = json.loads(read_text(ROOT / "logs.json"))
+    site = data["site"]
+    system = data.get("system", {})
+    core_start = str(system.get("core_start_utc", "")).strip()
+    sys_ver = str(system.get("sys_ver", "00.00"))
+
     try:
         core_date = datetime.fromisoformat(core_start.replace("Z", "+00:00")).date()
     except Exception as exc:
         raise ValueError(f"Invalid system.core_start_utc value: '{core_start}'") from exc
-    logs = cfg["logs"]
+    logs = data["logs"]
 
     base_url = site["base_url"].rstrip("/")
     og_image = site["og_image"]
@@ -324,22 +346,20 @@ def build():
         l["slug"] = slugify(l.get("slug") or l.get("title", ""))
 
     # ===== FILTER OUT FUTURE-DATED LOGS (do not generate/publish yet) =====
+    asset_version = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
     today = datetime.now(timezone.utc).date()
     logs = [l for l in logs if l["_date_obj"] <= today]
 
     # newest first
     logs_sorted = sorted(logs, key=lambda x: x["_id_int"], reverse=True)
-    logs_nav_payload = [
-        {
-            "id": l.get("id", ""),
-            "title": l.get("title", ""),
-            "text": l.get("text", ""),
-        }
-        for l in logs_sorted
-    ]
-
+    generated_log_pages = 0
+    available_count = "0000"
     t_log = read_text(ROOT / "template-log.html")
     t_index = read_text(ROOT / "template-index.html")
+    t_log = t_log.replace("{{SYS_VER}}", html.escape(sys_ver))
+    t_index = t_index.replace("{{SYS_VER}}", html.escape(sys_ver))
+    t_log = t_log.replace("{{AVAILABLE_COUNT}}", html.escape(available_count))
+    t_index = t_index.replace("{{AVAILABLE_COUNT}}", html.escape(available_count))
 
     # Optional template for disruption node pages
     t_node_path = ROOT / "template-disruption.html"
@@ -364,6 +384,17 @@ def build():
 
     def make_url_path(rel_path: Path):
         return "/" + rel_path.as_posix()
+
+    logs_nav_payload = [
+        {
+            "id": l.get("id", ""),
+            "date": l.get("date", ""),
+            "title": l.get("title", ""),
+            "text": l.get("text", ""),
+            "url": make_url_path(make_rel_path(l)),
+        }
+        for l in logs_sorted
+    ]
 
     def make_disruption_rel_path(d_slug: str):
         # ✅ zgodnie z Twoim wymaganiem: disruption/im-not-done.html (bez "series")
@@ -448,35 +479,30 @@ def build():
         log_mode = str(ui_state.get("mode") or "READ_ONLY")
         log_state = str(ui_state.get("status") or "SYSTEM_PARTIAL")
 
-        page_title = f"LOG {log['id']} // {log['title']} — OX500"
-        description = f"{log.get('title', '')} — {log.get('excerpt', '')[:150]}"
-        og_desc = f"{log.get('excerpt', '')[:200]}"
+        seo_title = f"LOG {log['id']} | OX500"
+        seo_description = first_line(log.get("text", ""), 150)
+        og_desc = seo_description
 
         page = render(
             t_log,
             {
                 "LANG": lang,
-                "PAGE_TITLE": html.escape(page_title),
-                "DESCRIPTION": html.escape(description),
-                "CANONICAL": canonical,
-                "OG_TITLE": html.escape(page_title),
+                "SEO_TITLE": html.escape(seo_title),
+                "SEO_DESCRIPTION": html.escape(seo_description),
+                "SEO_CANONICAL": canonical,
+                "OG_TITLE": html.escape(seo_title),
                 "OG_DESC": html.escape(og_desc),
                 "OG_IMAGE": og_image,
-                "JSONLD": jsonld_article(
-                    base_url,
-                    url_path,
-                    f"LOG {log['id']} // {log['title']}",
-                    log.get("date", ""),
-                    og_image,
-                    github_repo,
-                    disruption_name=d_name,
-                    disruption_url=d_url,
-                ),
+                "JSONLD": jsonld_log_creative_work(base_url, url_path, str(log["id"])),
                 "LOG_ID": html.escape(log["id"]),
                 "LOG_TITLE": html.escape(log["title"]),
                 "LOG_DATE": html.escape(log.get("date", "")),
                 "LOG_TEXT": format_log_text(log.get("text", "")),
                 "SYSTEM_CORE_START_UTC": html.escape(core_start),
+                "AVAILABLE_COUNT": available_count,
+                "AVAILABLE_COUNT": available_count,
+                "SYS_VER": html.escape(sys_ver),
+                "SYS_VER": html.escape(sys_ver),
                 "system_age_days_at_event": html.escape(log.get("system_age_days_at_event", "")),
                 "CURRENT_LOG_ID": html.escape(log["id"]),
                 "LOG_MODE": html.escape(log_mode),
@@ -493,6 +519,7 @@ def build():
         page = rewrite_css_links(page, base_url)
 
         write_text(DIST / rel_path, page)
+        generated_log_pages += 1
         sitemap_entries.append((canonical, log.get("date", "")))
 
     # ===== DISRUPTION NODE PAGES =====
@@ -663,6 +690,7 @@ def build():
     latest_log = logs_sorted[0] if logs_sorted else None
 
     latest_log_id = ""
+    latest_log_date = ""
     latest_log_text = ""
     latest_log_url = ""
     latest_log_prev_url = ""
@@ -673,6 +701,7 @@ def build():
 
     if latest_log:
         latest_log_id = html.escape(latest_log["id"])
+        latest_log_date = html.escape(latest_log.get("date", ""))
         latest_log_text = format_log_text(latest_log.get("text", ""))
         latest_log_url = make_url_path(make_rel_path(latest_log))
 
@@ -689,6 +718,21 @@ def build():
             latest_log_next_attrs = ""
 
     blocks = []
+    recent_logs = []
+    disruption_nodes = []
+    disruption_index_items = []
+
+    for l in logs_sorted[:6]:
+        lp = make_rel_path(l)
+        up = make_url_path(lp)
+        raw_title = str(l.get("title", ""))
+        title = re.sub(r"^LOG\s+\d+\s*//\s*", "", raw_title, flags=re.IGNORECASE).strip()
+        recent_logs.append(
+            f'<a class="log-line" href="{up}">'
+            f'<span class="log-id">LOG {html.escape(l["id"])}</span>'
+            f'<span class="log-tag">{html.escape(title or raw_title)}</span>'
+            f"</a>"
+        )
 
     for idx, d_slug in enumerate(disruption_order[:HOME_DISRUPTION_LIMIT]):
         d = disruptions[d_slug]
@@ -725,6 +769,32 @@ def build():
     </div>
   </div>
 </details>'''
+        )
+
+    for d_slug in disruption_order[:4]:
+        d = disruptions[d_slug]
+        d_name = d["name"]
+        d_logs = d["logs"]
+        count = len(d_logs)
+        node_url = make_url_path(make_disruption_rel_path(d_slug))
+        disruption_nodes.append(
+            f'<a class="log-line" href="{node_url}">'
+            f'<span class="log-id">DISRUPTION //</span>'
+            f'<span class="log-tag"><span class="node-name">{html.escape(d_name)}</span> <span class="node-count">[{count}]</span> <span class="node-suffix">NODE</span></span>'
+            f"</a>"
+        )
+
+    for d_slug in disruption_order:
+        d = disruptions[d_slug]
+        d_name = d["name"]
+        d_logs = d["logs"]
+        count = len(d_logs)
+        node_url = make_url_path(make_disruption_rel_path(d_slug))
+        disruption_index_items.append(
+            f'<a class="log-line disruption-archive-item" href="{node_url}">'
+            f'<span class="log-id">DISRUPTION //</span>'
+            f'<span class="log-tag"><span class="node-name">{html.escape(d_name)}</span> <span class="node-count">[{count}]</span> <span class="node-suffix">NODE</span></span>'
+            f"</a>"
         )
 
     # ===== GENERATE DISRUPTION SERIES JSON-LD FOR HOMEPAGE =====
@@ -780,6 +850,8 @@ def build():
         {
             "LANG": lang,
             "SYSTEM_CORE_START_UTC": html.escape(core_start),
+            "AVAILABLE_COUNT": available_count,
+            "SYS_VER": html.escape(sys_ver),
             "BASE_URL": base_url,
             "CANONICAL": f"{base_url}/",
             "SITEMAP_URL": f"{base_url}/sitemap.xml",
@@ -788,10 +860,14 @@ def build():
             "YOUTUBE": youtube,
             "BANDCAMP": bandcamp,
             "GITHUB": github_repo,
+            "RECENT_LOGS": "\n".join(recent_logs),
             "DISRUPTION_BLOCKS": "\n\n".join(blocks),
+            "DISRUPTION_NODES": "\n".join(disruption_nodes),
+            "DISRUPTION_INDEX_ITEMS": '<div class="disruption-archive-grid">' + "\n".join(disruption_index_items) + "</div>",
             "DISRUPTION_SERIES_JSONLD": json.dumps(disruption_series_jsonld, ensure_ascii=False, indent=2),
             "CURRENT_LOG_ID": latest_log_id,
             "LATEST_LOG_ID": latest_log_id,
+            "LATEST_LOG_DATE": latest_log_date,
             "LATEST_LOG_TEXT": latest_log_text,
             "LATEST_LOG_URL": latest_log_url,
             "LATEST_LOG_PREV_URL": latest_log_prev_url,
@@ -805,6 +881,20 @@ def build():
 
 
     write_text(DIST / "index.html", index_html)
+
+    # Final AVAILABLE value = real number of generated log HTML pages.
+    available_count = f"{generated_log_pages:04d}"
+    for html_path in DIST.rglob("*.html"):
+        src = read_text(html_path)
+        updated = src.replace("{{AVAILABLE_COUNT}}", available_count)
+        updated = updated.replace("{{ASSET_VERSION}}", asset_version)
+        updated = re.sub(
+            r'(<b id="avail">)\d+(</b>)',
+            rf"\g<1>{available_count}\g<2>",
+            updated,
+        )
+        if updated != src:
+            write_text(html_path, updated)
 
     # ===== ROBOTS =====
     write_text(

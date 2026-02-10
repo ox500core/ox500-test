@@ -13,8 +13,13 @@
 
   let mem = {};
   try {
-    mem = JSON.parse(localStorage.getItem(key)) || {};
-  } catch (_e) {
+    const stored = localStorage.getItem(key);
+    mem = stored ? JSON.parse(stored) : {};
+    if (typeof mem !== "object" || Array.isArray(mem) || mem === null) {
+      mem = {};
+    }
+  } catch (e) {
+    console.warn("[OX500] Failed to parse agent memory:", e);
     mem = {};
   }
 
@@ -43,7 +48,9 @@
         lastLogId: logId,
       })
     );
-  } catch (_e) {}
+  } catch (e) {
+    console.warn("[OX500] Failed to save agent memory:", e);
+  }
 
   if (terminal && inputLine && input) {
     runInteractiveTerminal(script, terminal, inputLine, input);
@@ -72,7 +79,7 @@
       let i = 0;
       const cursor = document.createElement("span");
       cursor.className = "cursor";
-      cursor.textContent = "█";
+      cursor.textContent = "\u2588";
       el.appendChild(cursor);
 
       function step() {
@@ -163,7 +170,7 @@
       let i = 0;
       const cursor = document.createElement("span");
       cursor.className = "cursor";
-      cursor.textContent = "█";
+      cursor.textContent = "\u2588";
       el.appendChild(cursor);
       function step() {
         if (i < text.length) {

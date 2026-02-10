@@ -1,19 +1,22 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="{{LANG}}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#050608" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
 
-  <title>{{PAGE_TITLE}}</title>
-  <meta name="description" content="{{DESCRIPTION}}" />
+  <title>{{SEO_TITLE}}</title>
+  <meta name="description" content="{{SEO_DESCRIPTION}}" />
 
-  <link rel="canonical" href="{{CANONICAL}}" />
+  <link rel="canonical" href="{{SEO_CANONICAL}}" />
 
   <meta property="og:title" content="{{OG_TITLE}}" />
   <meta property="og:description" content="{{OG_DESC}}" />
   <meta property="og:type" content="article" />
-  <meta property="og:url" content="{{CANONICAL}}" />
+  <meta property="og:url" content="{{SEO_CANONICAL}}" />
   <meta property="og:image" content="{{OG_IMAGE}}" />
 
   <meta name="twitter:card" content="summary_large_image" />
@@ -21,7 +24,7 @@
   <meta name="twitter:description" content="{{OG_DESC}}" />
   <meta name="twitter:image" content="{{OG_IMAGE}}" />
 
-  <link rel="stylesheet" href="/assets/css/style.css" />
+  <link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}" />
   <script type="application/ld+json">{{JSONLD}}</script>
 </head>
 <body data-log-level="{{LOG_ID}}" data-core-start="{{SYSTEM_CORE_START_UTC}}">
@@ -43,10 +46,10 @@
             <span class="pill">NODE: OX500_CORE</span>
           </div>
           <div class="right">
-            <span class="pill">SYS <b id="sysVer">41.02</b></span>
+            <span class="pill">SYS <b id="sysVer">{{SYS_VER}}</b></span>
             <span class="pill">CORE ACTIVE SINCE <span id="system-uptime"></span></span>
             <span class="pill">TIME <b id="clock">--:--:--</b></span>
-            <span class="pill">AVAILABLE <b id="avail">0565</b></span>
+            <span class="pill">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
           </div>
         </div>
 
@@ -112,7 +115,7 @@
           <section class="panel">
             <div class="hd"><span class="tag">DIAGNOSTICS</span><span>THERM</span></div>
             <div class="bd mono">CPU LOAD: 94% [CRITICAL]
-THERMAL: 87°C [WARNING]
+THERMAL: 87&deg;C [WARNING]
 NET: UNSTABLE
 AUTH: FAILED
 SECURITY: DISABLED</div>
@@ -143,9 +146,9 @@ MODE       : OBSERVE_ONLY</div>
 
         <div class="bottombar" aria-label="bottom bar">
           <div class="left">
-            PAGE: {{CANONICAL}}
+            PAGE: {{SEO_CANONICAL}}
             <br />
-            META: {{DESCRIPTION}}
+            META: {{SEO_DESCRIPTION}}
           </div>
           <div class="right">
             ACTIVITY_COMMS:
@@ -162,15 +165,15 @@ MODE       : OBSERVE_ONLY</div>
 
   <noscript>
     <div class="noscript-notice">
-      JS is disabled — interface runs in static mode.
+      JS is disabled &mdash; interface runs in static mode.
     </div>
   </noscript>
 
-  <script src="/assets/js/station-core.js" defer></script>
-  <script src="/assets/js/uptime.js" defer></script>
-  <script src="/assets/js/memory-scatter.js" defer></script>
-  <script src="/assets/js/log-navigation.js" defer></script>
-  <script src="/assets/js/agent.js" defer></script>
+  <script src="/assets/js/station-core.js?v={{ASSET_VERSION}}" defer></script>
+  <script src="/assets/js/uptime.js?v={{ASSET_VERSION}}" defer></script>
+  <script src="/assets/js/memory-scatter.js?v={{ASSET_VERSION}}" defer></script>
+  <script src="/assets/js/log-navigation.js?v={{ASSET_VERSION}}" defer></script>
+  <script src="/assets/js/agent.js?v={{ASSET_VERSION}}" defer></script>
 </body>
 </html>
 

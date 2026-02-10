@@ -607,6 +607,20 @@ body::after{
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
+
+/* Archive view - align content from top */
+#indexLogPanel .log-text.archive-view{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  place-content: start;
+}
+
+#indexLogPanel .log-text.archive-view > * {
+  width: 100%;
+  align-self: flex-start;
+}
 .log-text p{ 
   margin: 0 0 20px;
   white-space: pre-wrap;
@@ -712,6 +726,30 @@ body::after{
 .log-body{
   white-space:pre-wrap;
   word-break:break-word;
+}
+
+.active-log-title{
+  font-family: var(--mono);
+  font-size: clamp(48px, 3.2vw, 57px);
+  line-height: 1.02;
+  letter-spacing: .07em;
+  font-weight: 700;
+  color: rgba(255,255,255,.98);
+  text-transform: uppercase;
+  margin: 2px 0 18px;
+  text-shadow:
+    0 0 12px rgba(174,226,255,.34),
+    0 0 28px rgba(174,226,255,.22);
+}
+
+.active-log-title.archive-title{
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: .12em;
+  font-weight: 500;
+  color: rgba(185,214,223,.78);
+  margin: -4px 0 10px;
+  text-shadow: none;
 }
 
 /* Simple log links used in lists */
@@ -823,6 +861,217 @@ body::after{
   flex: 1 1 auto;
 }
 
+.recent-logs .recent-log-item::before{
+  content: attr(data-prefix) " ";
+  display: inline-block;
+  width: 1.2ch;
+  color: rgba(255,255,255,.90);
+}
+
+#recentLogsPanel,
+#disruptionNodesPanel{
+  min-height: 210px;
+}
+
+#disruptionNodesPanel .log-line{
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 2px 0;
+}
+
+#disruptionNodesPanel .log-line:hover{
+  background: none;
+  border: none;
+  box-shadow: none;
+  text-decoration: underline;
+}
+
+.recent-logs .recent-log-next{
+  display: block;
+  text-align: right;
+}
+
+.recent-logs .recent-log-next:hover{
+  text-decoration: none;
+}
+
+#recentLogsPanel .recent-log-next:hover{
+  text-decoration: none !important;
+  color: inherit !important;
+}
+
+#disruptionNodesPanel .log-line .log-id{
+  color: rgba(255,107,53,.92);
+}
+
+#disruptionNodesPanel .log-line .node-count{
+  opacity: .55;
+}
+
+#disruptionNodesPanel .log-line .node-suffix{
+  opacity: .62;
+}
+
+.recent-logs .recent-log-item[data-prefix=">"]{
+  color: rgba(255,255,255,.96);
+  text-shadow: 0 0 8px rgba(174,226,255,.14);
+}
+
+.recent-logs .recent-log-item[data-prefix=">"] .log-id,
+.recent-logs .recent-log-item[data-prefix=">"] .log-tag{
+  color: inherit;
+}
+
+.disruption-archive-grid{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-content: flex-start;
+}
+
+.disruption-archive-grid .disruption-archive-item{
+  display: inline-flex;
+  align-items: baseline;
+  width: calc(50% - 7px);
+  max-width: calc(50% - 7px);
+}
+
+.disruption-archive-grid .disruption-archive-item.log-line{
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 2px 0;
+}
+
+.disruption-archive-grid .disruption-archive-item.log-line:hover{
+  background: none;
+  border: none;
+  box-shadow: none;
+  text-decoration: underline;
+}
+
+#active-log-container.archive-view #logMover{
+  position: static !important;
+  top: auto;
+  left: auto;
+  right: auto;
+  transform: none !important;
+  padding-top: 0;
+}
+
+#active-log-container.archive-view .active-log-title.archive-title{
+  margin: 0 0 8px !important;
+}
+
+#active-log-container.archive-view .log-body{
+  margin-top: 0;
+}
+
+#active-log-container.archive-view{
+  display: block !important;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+}
+
+#active-log-container.archive-view .archive-mover{
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  padding: 0 12px;
+}
+
+#active-log-container.archive-view .disruption-archive-grid .disruption-archive-item{
+  color: rgba(185,214,223,.92);
+}
+
+#active-log-container.archive-view .disruption-archive-grid .disruption-archive-item .log-id{
+  color: rgba(255,107,53,.92);
+}
+
+#active-log-container.archive-view .disruption-archive-grid .disruption-archive-item .log-tag{
+  color: rgba(185,214,223,.92);
+}
+
+#active-log-container.archive-view{
+  display: block !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  position: relative;
+  text-align: left;
+}
+
+#active-log-container.archive-view .archive-mover{
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  transform: none !important;
+  margin: 0 !important;
+  padding: 0 12px 8px !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+
+#active-log-container.archive-view .archive-heading{
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: .12em;
+  font-weight: 500;
+  color: rgba(185,214,223,.78);
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+#active-log-container.archive-view .archive-list{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-content: flex-start;
+}
+
+#active-log-container.archive-view .archive-list .disruption-archive-link{
+  display: inline-flex;
+  align-items: baseline;
+  width: calc(50% - 7px);
+  max-width: calc(50% - 7px);
+  padding: 2px 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  text-decoration: none;
+  color: rgba(185,214,223,.92);
+}
+
+#active-log-container.archive-view .archive-list .disruption-archive-link:hover{
+  text-decoration: underline;
+}
+
+#active-log-container.archive-view .archive-list .disruption-archive-link .log-id{
+  color: rgba(255,107,53,.92);
+}
+
+/* Archive view must start at top; avoid multi-row flex vertical distribution */
+#active-log-container.archive-view .archive-mover{
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+}
+
+#active-log-container.archive-view .archive-list{
+  align-content: flex-start !important;
+  justify-content: flex-start !important;
+  margin-top: 0 !important;
+}
+
+
 .bd.scroll.log-text{
   overflow-y: auto;
   overflow-x: hidden;
@@ -880,6 +1129,9 @@ a:hover{ color: rgba(255,255,255,.92); }
       "right"
       "bottom";
   }
+  .grid.grid-sidebars-wide{
+    grid-template-columns: 1fr;
+  }
   .bottombar .left{ max-width: 100%; }
   .dock{ grid-template-columns: 1fr; }
   
@@ -887,6 +1139,9 @@ a:hover{ color: rgba(255,255,255,.92); }
   .log-text{
     font-size: 19px;
     line-height: 1.9;
+  }
+  .active-log-title{
+    font-size: 57px;
   }
   .log-text strong{
     font-size: 20px;
@@ -918,6 +1173,9 @@ a:hover{ color: rgba(255,255,255,.92); }
     font-size: 11px;
     justify-content: center;
   }
+  .grid.grid-sidebars-wide{
+    grid-template-columns: 1fr;
+  }
   
   .pill{ 
     padding: 7px 10px;
@@ -940,6 +1198,11 @@ a:hover{ color: rgba(255,255,255,.92); }
     line-height: 1.95;
     letter-spacing: .02em;
     padding: 4px 0;
+  }
+  .active-log-title{
+    font-size: 60px;
+    line-height: 1.0;
+    margin-bottom: 16px;
   }
   
   .log-text p{
@@ -1040,6 +1303,9 @@ a:hover{ color: rgba(255,255,255,.92); }
   .log-text{
     font-size: 21px;
     line-height: 2.0;
+  }
+  .active-log-title{
+    font-size: 63px;
   }
   
   .log-text strong{
@@ -1295,7 +1561,7 @@ a:hover{ color: rgba(255,255,255,.92); }
 }
 
 .agent-line.typing::after{
-  content:" █";
+  content: " \2588";
   animation:blink 1s infinite;
 }
 
@@ -1353,4 +1619,66 @@ a:hover{ color: rgba(255,255,255,.92); }
 
 @keyframes blink{
   50%{opacity:0;}
+}
+
+/* Final archive layout lock: keep archive content anchored at top */
+#active-log-container.archive-view{
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:flex-start !important;
+  align-items:stretch !important;
+  align-content:flex-start !important;
+  position:relative !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  height:100% !important;
+  min-height:0 !important;
+  padding-top:0 !important;
+  padding-bottom:0 !important;
+  text-align:left;
+}
+
+#active-log-container.archive-view #logMover,
+#active-log-container.archive-view .archive-mover{
+  flex:0 0 auto !important;
+  align-self:stretch !important;
+  position:absolute !important;
+  top:auto !important;
+  bottom:0 !important;
+  left:0 !important;
+  right:auto !important;
+  transform:none !important;
+  margin:0 !important;
+}
+
+#active-log-container.archive-view .archive-heading{
+  margin:0 !important;
+  padding:10px 0 0 0 !important;
+  text-align:left !important;
+}
+
+/* Archive corner list should match DISRUPTION_NODES (plain links, no pills) */
+#archive-corner-label .archive-list .log-line{
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 2px 0 !important;
+  margin: 0 !important;
+  display: block !important;
+}
+
+#archive-corner-label .archive-list .log-line:hover{
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  text-decoration: underline !important;
+}
+
+#archive-corner-label .archive-list .log-line .node-count{
+  opacity: .55;
+}
+
+#archive-corner-label .archive-list .log-line .node-suffix{
+  opacity: .62;
 }

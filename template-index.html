@@ -4,8 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#050608" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>{{SITE_TITLE}} // STATION</title>
-  <meta name="description" content="OX500 STATION — system interface. Archive access is conditional. The logs remain." />
+  <meta name="description" content="OX500 STATION &mdash; system interface. Archive access is conditional. The logs remain." />
 
   <link rel="canonical" href="{{CANONICAL}}" />
   <link rel="sitemap" type="application/xml" href="{{SITEMAP_URL}}" />
@@ -21,7 +24,7 @@
   <meta name="twitter:description" content="System interface. Archive access is conditional. The logs remain." />
   <meta name="twitter:image" content="{{OG_IMAGE}}" />
 
-  <link rel="stylesheet" href="/assets/css/style.css" />
+  <link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}" />
   <script type="application/ld+json">{{DISRUPTION_SERIES_JSONLD}}</script>
 </head>
 <body data-log-level="{{LATEST_LOG_ID}}" data-core-start="{{SYSTEM_CORE_START_UTC}}">
@@ -43,23 +46,31 @@
       <div class="grid grid-sidebars-wide">
         <div class="topbar" aria-label="system bar">
           <div class="left">
-            <span class="pill"><b>LOG</b> 02807-45 080719</span>
-            <span class="pill">SENSOR MAL-RESPONSE <span class="hot">0x415-07</span> INIT</span>
             <span class="pill">NODE: OX500_CORE</span>
+            <span class="pill" id="topbarLogStamp"><b>LOG</b> {{LATEST_LOG_ID}} {{LATEST_LOG_DATE}}</span>
+            <span class="pill">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
           </div>
           <div class="right">
-            <span class="pill">SYS <b id="sysVer">41.02</b></span>
+            <span class="pill">SYS <b id="sysVer">{{SYS_VER}}</b></span>
+            <span class="pill">SENSOR MAL-RESPONSE <span class="hot">0x415-07</span> INIT</span>
             <span class="pill">CORE ACTIVE SINCE <span id="system-uptime"></span></span>
             <span class="pill">TIME <b id="clock">--:--:--</b></span>
-            <span class="pill">AVAILABLE <b id="avail">0565</b></span>
           </div>
         </div>
 
         <div class="leftcol left-column">
-          <section class="panel recent-logs">
+          <section class="panel recent-logs" id="recentLogsPanel">
             <div class="hd"><span class="tag">RECENT_LOGS</span><span>LIST</span></div>
             <div class="bd" id="leftBlock2">
-              {{DISRUPTION_BLOCKS}}
+              {{RECENT_LOGS}}
+              <span class="log-line recent-log-next">NEXT LOG IN: <b id="nextLogCountdown">04:12:33</b></span>
+            </div>
+          </section>
+          <section class="panel" id="disruptionNodesPanel">
+            <div class="hd"><span class="tag">DISRUPTION_NODES</span><span>SERIES</span></div>
+            <div class="bd" id="leftBlock3">
+              {{DISRUPTION_NODES}}
+              <a class="log-line" id="openDisruptionIndex" href="#disruption-index">OPEN DISRUPTION INDEX</a>
             </div>
           </section>
         </div>
@@ -85,7 +96,7 @@
           <div class="dock dock-wide" aria-label="station windows">
             <section class="panel" id="indexLogPanel">
               <div class="hd">
-                <span class="tag">ACTIVE_LOG</span>
+                <span class="tag">ACTIVE_VIEW</span>
                 <div class="actions">
                   <span class="meta-pill" id="activeLogId">LOG {{LATEST_LOG_ID}}</span>
                   <a class="meta-pill" href="{{LATEST_LOG_URL}}">OPEN LOG PAGE</a>
@@ -107,7 +118,7 @@
           <section class="panel">
             <div class="hd"><span class="tag">DIAGNOSTICS</span><span>THERM</span></div>
             <div class="bd mono" id="rightBlock1">CPU LOAD: 94% [CRITICAL]
-THERMAL: 87°C [WARNING]
+THERMAL: 87&deg;C [WARNING]
 DISK ERRORS: 2847 SECTORS
 NETWORK: UNSTABLE
 SECURITY: DISABLED</div>
@@ -151,14 +162,18 @@ AGENT LINK: DETACHED</div>
 
   <noscript>
     <div class="noscript-notice">
-      JS is disabled — interface runs in static mode.
+      JS is disabled &mdash; interface runs in static mode.
     </div>
   </noscript>
 
-  <script src="/assets/js/station-core.js" defer></script>
-  <script src="/assets/js/uptime.js" defer></script>
-  <script src="/assets/js/memory-scatter.js" defer></script>
-  <script src="/assets/js/log-navigation.js" defer></script>
-  <script src="/assets/js/agent.js" defer></script>
+  <template id="disruptionIndexTemplate">
+    {{DISRUPTION_INDEX_ITEMS}}
+  </template>
+
+  <script src="/assets/js/station-core.js?v={{ASSET_VERSION}}" defer></script>
+  <script src="/assets/js/uptime.js?v={{ASSET_VERSION}}" defer></script>
+  <script src="/assets/js/memory-scatter.js?v={{ASSET_VERSION}}" defer></script>
+  <script src="/assets/js/log-navigation.js?v={{ASSET_VERSION}}" defer></script>
+  <script src="/assets/js/agent.js?v={{ASSET_VERSION}}" defer></script>
 </body>
 </html>

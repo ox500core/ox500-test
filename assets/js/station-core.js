@@ -8,6 +8,10 @@
     }, 400);
   });
 
+  window.OX500_NEXT_LOG_STATIC = "04:12:33";
+  const nextLogCountdown = document.getElementById("nextLogCountdown");
+  if (nextLogCountdown) nextLogCountdown.textContent = window.OX500_NEXT_LOG_STATIC;
+
   const prefersReduced =
     window.matchMedia &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -119,7 +123,7 @@
     if (!coords) return;
     const lat = 52.2297 + (Math.random() * 0.08 - 0.04);
     const lon = 21.0122 + (Math.random() * 0.08 - 0.04);
-    coords.textContent = `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E`;
+    coords.textContent = `${lat.toFixed(4)}\u00B0 N, ${lon.toFixed(4)}\u00B0 E`;
   }
   updateCoords();
   setInterval(updateCoords, 4500);
@@ -146,7 +150,62 @@
   refreshFeedPool();
   scheduleFeed(1800);
 
+  async function updateSysVersionPill() {
+    const candidates = [];
+    const pathParts = window.location.pathname.split("/").filter(Boolean);
+    candidates.push(new URL("/logs.json", window.location.origin).href);
+    candidates.push(new URL("logs.json", window.location.href).href);
+    for (let i = 0; i < pathParts.length; i += 1) {
+      candidates.push(new URL(`${"../".repeat(i + 1)}logs.json`, window.location.href).href);
+    }
+
+    let sysVer = "";
+    for (const url of [...new Set(candidates)]) {
+      try {
+        const res = await fetch(url, { cache: "no-cache" });
+        if (!res.ok) continue;
+        const json = await res.json();
+        const value = json && json.system && json.system.sys_ver;
+        if (value) {
+          sysVer = String(value).trim();
+          break;
+        }
+      } catch (_) {}
+    }
+    if (!sysVer) return;
+
+    const sysVerEl = document.getElementById("sysVer");
+    if (sysVerEl) {
+      sysVerEl.textContent = sysVer;
+      return;
+    }
+    const sysPill = document.querySelector(".topbar .right .pill");
+    if (sysPill && /^SYS\s+/i.test((sysPill.textContent || "").trim())) {
+      sysPill.textContent = `SYS ${sysVer}`;
+    }
+  }
+
+  function lockAvailableFromBuild() {
+    const availEl = document.getElementById("avail");
+    if (!availEl) return;
+    const buildValue = (availEl.textContent || "").trim();
+    if (!buildValue) return;
+
+    const enforce = () => {
+      if ((availEl.textContent || "").trim() !== buildValue) {
+        availEl.textContent = buildValue;
+      }
+    };
+
+    enforce();
+    document.addEventListener("ox500:active-log-updated", enforce);
+    const observer = new MutationObserver(enforce);
+    observer.observe(availEl, { childList: true, characterData: true, subtree: true });
+  }
+
   document.addEventListener("ox500:active-log-updated", refreshFeedPool);
+  lockAvailableFromBuild();
+  updateSysVersionPill();
 
   document.querySelectorAll(".btn[data-tab]").forEach((btn) => {
     btn.addEventListener(
