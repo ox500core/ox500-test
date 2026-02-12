@@ -46,10 +46,10 @@
             <span class="pill">NODE: OX500_CORE</span>
           </div>
           <div class="right">
-            <span class="pill">SYS <b id="sysVer">{{SYS_VER}}</b></span>
-            <span class="pill">CORE ACTIVE SINCE <span id="system-uptime"></span></span>
-            <span class="pill">TIME <b id="clock">--:--:--</b></span>
-            <span class="pill">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
+            <span class="pill optional deep">SYS <b id="sysVer">{{SYS_VER}}</b></span>
+            <span class="pill optional deep">CORE ACTIVE SINCE <span id="system-uptime"></span></span>
+            <span class="pill time-pill">TIME <b id="clock">--:--:--</b></span>
+            <span class="pill optional deep">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
           </div>
         </div>
 
@@ -132,14 +132,6 @@ LINKS     : ACTIVE
 MODE      : OBSERVE_ONLY</div>
           </section>
 
-          <section class="panel" id="agentPanel">
-            <div class="hd"><span class="tag">ALERT</span><span>MSG</span></div>
-            <div class="bd" id="agentText">
-              <div id="agent-channel" data-log-id="{{CURRENT_LOG_ID}}">
-                <div class="agent-line"></div>
-              </div>
-            </div>
-          </section>
         </div>
 
         <div class="bottombar" aria-label="bottom bar">
@@ -169,9 +161,6 @@ MODE      : OBSERVE_ONLY</div>
 
   <script src="/assets/js/station-core.js?v={{ASSET_VERSION}}" defer></script>
   <script src="/assets/js/uptime.js?v={{ASSET_VERSION}}" defer></script>
-  <script src="/assets/js/memory-scatter.js?v={{ASSET_VERSION}}" defer></script>
-  <script src="/assets/js/log-navigation.js?v={{ASSET_VERSION}}" defer></script>
-  <script src="/assets/js/agent.js?v={{ASSET_VERSION}}" defer></script>
 </body>
 </html>
 

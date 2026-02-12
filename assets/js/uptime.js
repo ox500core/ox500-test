@@ -2,7 +2,7 @@
   const startStr = document.body ? document.body.dataset.coreStart : "";
   if (!startStr) return;
 
-  const START = new Date(startStr).getTime();
+  const start = new Date(startStr).getTime();
   const el = document.getElementById("system-uptime");
   if (!el) return;
 
@@ -11,7 +11,7 @@
   }
 
   function update() {
-    let diff = Math.floor((Date.now() - START) / 1000);
+    let diff = Math.floor((Date.now() - start) / 1000);
     if (diff < 0) diff = 0;
 
     const days = Math.floor(diff / 86400);

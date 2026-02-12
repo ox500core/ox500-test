@@ -199,6 +199,7 @@
   }
 
   function stagedSequence(node) {
+    if (!window.OX500_AGENT_ENABLED) return;
     typeText(node, "PRESENCE DETECTED.");
     setTimeout(() => {
       node.appendChild(document.createElement("br"));
@@ -211,6 +212,7 @@
   }
 
   function spawnAgent() {
+    if (!window.OX500_AGENT_ENABLED) return;
     if (agentSpawned) return;
     agentSpawned = true;
 
@@ -246,6 +248,47 @@
     const oldLabel = document.getElementById("archive-corner-label");
     if (oldLabel) oldLabel.remove();
   }
+
+  function resetAutoscrollForArchiveOpen() {
+    window.OX500_ARCHIVE_MODE = true;
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    y = 0;
+    lastTs = null;
+    scrollPausedByClick = false;
+    pausedUntil = 0;
+    isNavigating = false;
+    stopArchiveTopLock();
+    stopLiveStation();
+    removeAgentOverlay();
+
+    const mover = document.getElementById("logMover");
+    if (mover) {
+      mover.style.transform = "translateY(0)";
+      mover.style.top = "0";
+      mover.style.left = "0";
+      mover.style.right = "0";
+      mover.style.bottom = "auto";
+      mover.style.marginTop = "0";
+      mover.style.marginBottom = "0";
+    }
+
+    if (container) {
+      container.classList.remove("autoscroll-active");
+      container.scrollTop = 0;
+    }
+  }
+
+  document.addEventListener("ox500:archive-open", () => {
+    resetAutoscrollForArchiveOpen();
+  });
+
+  // Public hard reset hook for other modules (e.g. disruption archive open).
+  window.OX500_HARD_RESET_ACTIVE_VIEW = function () {
+    resetAutoscrollForArchiveOpen();
+  };
 
   function updateButtons() {
     nextBtn.disabled = currentIndex <= 0;
@@ -312,6 +355,7 @@
   }
 
   function startLiveStation() {
+    if (window.OX500_ARCHIVE_MODE) return;
     if (liveInterval) return;
     liveInterval = window.setInterval(tickLiveStation, LIVE_ROTATE_MS);
   }
@@ -358,6 +402,7 @@
   }
 
   function renderLog(options) {
+    window.OX500_ARCHIVE_MODE = false;
     const opts = options || {};
     const pushHistory = opts.pushHistory !== false;
     const log = logs[currentIndex];
@@ -367,12 +412,14 @@
     loopCount = 0;
     document.body.dataset.logLevel = String(log.id || "");
     container.classList.remove("archive-view");
+    container.classList.remove("d-archive-mode");
     stopArchiveTopLock();
     removeArchiveCornerLabel();
     container.removeAttribute("style");
     const containerBody = container.parentElement;
     const nav = containerBody ? containerBody.querySelector(".log-nav") : null;
     if (containerBody) {
+      containerBody.classList.remove("d-archive-panel-mode");
       containerBody.removeAttribute("style");
     }
     if (nav) nav.style.removeProperty("display");
@@ -406,6 +453,7 @@
   }
 
   function startAutoScroll() {
+    if (window.OX500_ARCHIVE_MODE) return;
     const mover = document.getElementById("logMover");
     if (!mover) return;
 
@@ -571,7 +619,11 @@
     });
   }
 
-  if (openDisruptionIndex && disruptionIndexTemplate) {
+  if (
+    openDisruptionIndex &&
+    disruptionIndexTemplate &&
+    !window.OX500_DISABLE_LEGACY_DISRUPTION_INDEX
+  ) {
     openDisruptionIndex.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -745,4 +797,232 @@
       updateButtons();
       stopLiveStation();
     });
+})();
+
+// Clean-room mode for disruption archive: replace ACTIVE_VIEW container on demand.
+(function () {
+  if (window.__OX500_CLEAN_ARCHIVE_ROOM__) return;
+  window.__OX500_CLEAN_ARCHIVE_ROOM__ = true;
+
+  function getPanelBody() {
+    return (
+      document.querySelector("#indexLogPanel .bd.scroll.log-text") ||
+      document.querySelector("#indexLogPanel .bd")
+    );
+  }
+
+  function hardResetPanelBody(panelBody) {
+    if (!panelBody) return;
+    panelBody.scrollTop = 0;
+    panelBody.style.display = "block";
+    panelBody.style.alignItems = "flex-start";
+    panelBody.style.justifyContent = "flex-start";
+    panelBody.style.paddingTop = "0px";
+    panelBody.style.marginTop = "0px";
+  }
+
+  function enforceTopLeft(root) {
+    if (!root) return;
+    root.scrollTop = 0;
+    root.style.display = "block";
+    root.style.position = "relative";
+    root.style.top = "0px";
+    root.style.left = "0px";
+    root.style.right = "auto";
+    root.style.bottom = "auto";
+    root.style.margin = "0";
+    root.style.padding = "0";
+    root.style.transform = "none";
+    root.style.overflowY = "auto";
+    root.style.overflowX = "hidden";
+
+    const nodes = root.querySelectorAll("*");
+    for (const el of nodes) {
+      el.style.transform = "none";
+      if (
+        el.id === "logMover" ||
+        el.classList.contains("archive-mover") ||
+        el.classList.contains("d-archive-shell")
+      ) {
+        el.style.position = "relative";
+        el.style.top = "0px";
+        el.style.left = "0px";
+        el.style.right = "auto";
+        el.style.bottom = "auto";
+        el.style.margin = "0";
+        el.style.paddingTop = "0px";
+        el.style.transform = "none";
+        el.style.width = "100%";
+      }
+    }
+  }
+
+  function remountArchiveAtRoot(root) {
+    if (!root) return;
+
+    // Prefer new disruption archive renderer node.
+    let archiveNode =
+      root.querySelector(".d-archive-shell") ||
+      root.querySelector(".archive-mover");
+    if (!archiveNode) return;
+
+    // If archive is nested under transformed wrappers (e.g. #logMover),
+    // move it directly under #active-log-container.
+    if (archiveNode.parentElement !== root) {
+      const mount = document.createElement("div");
+      mount.className = "ox-archive-clean-root";
+      mount.style.position = "relative";
+      mount.style.top = "0px";
+      mount.style.left = "0px";
+      mount.style.margin = "0";
+      mount.style.padding = "0";
+      mount.style.transform = "none";
+      mount.style.width = "100%";
+
+      archiveNode.parentElement && archiveNode.parentElement.removeChild(archiveNode);
+      mount.appendChild(archiveNode);
+
+      root.innerHTML = "";
+      root.appendChild(mount);
+    }
+  }
+
+  function replaceActiveViewContainer() {
+    // Keep the same DOM node instance; other modules may hold references to it.
+    const root = document.getElementById("active-log-container");
+    if (!root) return null;
+    root.scrollTop = 0;
+    root.removeAttribute("style");
+    return root;
+  }
+
+  function activateCleanArchiveRoom() {
+    window.OX500_DISABLE_LEGACY_DISRUPTION_INDEX = true;
+    window.OX500_ARCHIVE_MODE = true;
+
+    const panelBody = getPanelBody();
+    hardResetPanelBody(panelBody);
+
+    const root = replaceActiveViewContainer();
+    if (!root) return;
+    remountArchiveAtRoot(root);
+    enforceTopLeft(root);
+
+    // For late render/autoscroll callbacks: keep forcing top-left briefly.
+    const started = Date.now();
+    const obs = new MutationObserver(function () {
+      hardResetPanelBody(panelBody);
+      remountArchiveAtRoot(root);
+      enforceTopLeft(root);
+      if (Date.now() - started > 2500) {
+        obs.disconnect();
+      }
+    });
+    obs.observe(root, { childList: true, subtree: true });
+
+    for (let i = 0; i < 60; i += 1) {
+      setTimeout(function () {
+        hardResetPanelBody(panelBody);
+        remountArchiveAtRoot(root);
+        enforceTopLeft(root);
+      }, i * 40);
+    }
+  }
+
+  document.addEventListener(
+    "click",
+    function (ev) {
+      const trigger = ev.target && ev.target.closest ? ev.target.closest("a,button") : null;
+      if (!trigger) return;
+      const txt = (trigger.textContent || "").toUpperCase();
+      if (txt.includes("OPEN DISRUPTION INDEX") || txt.includes("DISRUPTION INDEX")) {
+        activateCleanArchiveRoom();
+      }
+    },
+    true
+  );
+})();
+// Hard runtime fix: force ACTIVE_VIEW archive content to top-left when disruption archive is visible.
+(function () {
+  if (window.__OX500_ARCHIVE_TOPLEFT_FIX__) return;
+  window.__OX500_ARCHIVE_TOPLEFT_FIX__ = true;
+
+  function forceTopLeft() {
+    const heading = Array.from(document.querySelectorAll("*")).find((el) => {
+      const t = (el.textContent || "").trim().toUpperCase();
+      return t === "DISRUPTION ARCHIVE";
+    });
+    if (!heading) return;
+
+    const panelBody =
+      heading.closest("#indexLogPanel .bd") ||
+      document.querySelector("#indexLogPanel .bd.scroll.log-text") ||
+      document.querySelector("#indexLogPanel .bd");
+
+    if (panelBody) {
+      panelBody.scrollTop = 0;
+      panelBody.style.display = "block";
+      panelBody.style.alignItems = "flex-start";
+      panelBody.style.justifyContent = "flex-start";
+      panelBody.style.paddingTop = "0px";
+      panelBody.style.marginTop = "0px";
+    }
+
+    // Reset the heading chain (up to ACTIVE_VIEW body) to remove autoscroll offsets.
+    let node = heading;
+    for (let i = 0; i < 10 && node; i += 1) {
+      node.style.position = "relative";
+      node.style.top = "0px";
+      node.style.left = "0px";
+      node.style.right = "auto";
+      node.style.bottom = "auto";
+      node.style.marginTop = "0px";
+      node.style.paddingTop = "0px";
+      node.style.transform = "none";
+      node = node.parentElement;
+      if (node && node.id === "indexLogPanel") break;
+    }
+
+    const activeContainer =
+      heading.closest("#active-log-container") || document.getElementById("active-log-container");
+    if (activeContainer) {
+      activeContainer.scrollTop = 0;
+      activeContainer.style.position = "relative";
+      activeContainer.style.top = "0px";
+      activeContainer.style.left = "0px";
+      activeContainer.style.right = "auto";
+      activeContainer.style.bottom = "auto";
+      activeContainer.style.margin = "0";
+      activeContainer.style.padding = "0";
+      activeContainer.style.transform = "none";
+      activeContainer.style.overflowY = "auto";
+      activeContainer.style.overflowX = "hidden";
+    }
+  }
+
+  function scheduleForceTopLeft() {
+    for (let i = 0; i < 28; i += 1) {
+      setTimeout(forceTopLeft, i * 35);
+    }
+  }
+
+  document.addEventListener(
+    "click",
+    function (ev) {
+      const trigger = ev.target && ev.target.closest ? ev.target.closest("a,button") : null;
+      if (!trigger) return;
+      const txt = (trigger.textContent || "").toUpperCase();
+      if (txt.includes("OPEN DISRUPTION INDEX") || txt.includes("DISRUPTION INDEX")) {
+        scheduleForceTopLeft();
+      }
+    },
+    true
+  );
+
+  const obs = new MutationObserver(function () {
+    if (document.body && document.body.textContent && document.body.textContent.toUpperCase().includes("DISRUPTION ARCHIVE")) {
+      scheduleForceTopLeft();
+    }
+  });
+  obs.observe(document.documentElement, { childList: true, subtree: true });
 })();

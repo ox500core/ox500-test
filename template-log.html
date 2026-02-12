@@ -41,15 +41,15 @@
       <div class="grid grid-sidebars-wide">
         <div class="topbar" aria-label="system bar">
           <div class="left">
-            <span class="pill"><b>LOG</b> {{LOG_ID}}</span>
+            <span class="pill log-pill"><b>LOG</b> {{LOG_ID}}</span>
             <span class="pill">CHANNEL: TEXT</span>
             <span class="pill">NODE: OX500_CORE</span>
           </div>
           <div class="right">
-            <span class="pill">SYS <b id="sysVer">{{SYS_VER}}</b></span>
-            <span class="pill">CORE ACTIVE SINCE <span id="system-uptime"></span></span>
-            <span class="pill">TIME <b id="clock">--:--:--</b></span>
-            <span class="pill">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
+            <span class="pill optional deep">SYS <b id="sysVer">{{SYS_VER}}</b></span>
+            <span class="pill optional deep">CORE ACTIVE SINCE <span id="system-uptime"></span></span>
+            <span class="pill time-pill">TIME <b id="clock">--:--:--</b></span>
+            <span class="pill optional deep">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
           </div>
         </div>
 
@@ -104,7 +104,7 @@
           <div class="dock dock-wide" aria-label="log text">
             <section class="panel">
               <div class="hd"><span class="tag">LOG_TEXT</span><span>TXT</span></div>
-              <div class="bd scroll log-text" id="logText">
+              <div class="bd scroll log-text">
                 {{LOG_TEXT}}
               </div>
             </section>
@@ -130,18 +130,6 @@ LOG_TEXT   : LOADED
 MODE       : OBSERVE_ONLY</div>
           </section>
 
-          <section class="panel" id="agentPanel">
-            <div class="hd"><span class="tag">ALERT</span><span>MSG</span></div>
-            <div class="bd" id="agentText">
-              <div id="agent-channel" data-log-id="{{CURRENT_LOG_ID}}">
-                <div id="agent-terminal"></div>
-                <div id="agent-input-line" class="hidden">
-                  <span class="prompt">&gt;</span>
-                  <input id="agent-input" type="text" autocomplete="off" />
-                </div>
-              </div>
-            </div>
-          </section>
         </div>
 
         <div class="bottombar" aria-label="bottom bar">
@@ -171,9 +159,6 @@ MODE       : OBSERVE_ONLY</div>
 
   <script src="/assets/js/station-core.js?v={{ASSET_VERSION}}" defer></script>
   <script src="/assets/js/uptime.js?v={{ASSET_VERSION}}" defer></script>
-  <script src="/assets/js/memory-scatter.js?v={{ASSET_VERSION}}" defer></script>
-  <script src="/assets/js/log-navigation.js?v={{ASSET_VERSION}}" defer></script>
-  <script src="/assets/js/agent.js?v={{ASSET_VERSION}}" defer></script>
 </body>
 </html>
 

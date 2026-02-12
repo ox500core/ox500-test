@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}" />
   <script type="application/ld+json">{{DISRUPTION_SERIES_JSONLD}}</script>
 </head>
-<body data-log-level="{{LATEST_LOG_ID}}" data-core-start="{{SYSTEM_CORE_START_UTC}}">
+<body data-log-level="{{LATEST_LOG_ID}}" data-core-start="{{SYSTEM_CORE_START_UTC}}" data-layout="home">
   <div class="vignette" aria-hidden="true"></div>
   <div class="noise" aria-hidden="true"></div>
   <div id="boot-layer">REINDEXING MEMORY...</div>
@@ -47,14 +47,14 @@
         <div class="topbar" aria-label="system bar">
           <div class="left">
             <span class="pill">NODE: OX500_CORE</span>
-            <span class="pill" id="topbarLogStamp"><b>LOG</b> {{LATEST_LOG_ID}} {{LATEST_LOG_DATE}}</span>
-            <span class="pill">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
+            <span class="pill log-pill" id="topbarLogStamp"><b>LOG</b> {{LATEST_LOG_ID}} {{LATEST_LOG_DATE}}</span>
+            <span class="pill optional deep">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
           </div>
           <div class="right">
-            <span class="pill">SYS <b id="sysVer">{{SYS_VER}}</b></span>
-            <span class="pill">SENSOR MAL-RESPONSE <span class="hot">0x415-07</span> INIT</span>
-            <span class="pill">CORE ACTIVE SINCE <span id="system-uptime"></span></span>
-            <span class="pill">TIME <b id="clock">--:--:--</b></span>
+            <span class="pill optional deep">SYS <b id="sysVer">{{SYS_VER}}</b></span>
+            <span class="pill optional deep">SENSOR MAL-RESPONSE <span class="hot">0x415-07</span> INIT</span>
+            <span class="pill optional deep">CORE ACTIVE SINCE <span id="system-uptime"></span></span>
+            <span class="pill time-pill">TIME <b id="clock">--:--:--</b></span>
           </div>
         </div>
 
@@ -70,14 +70,22 @@
             <div class="hd"><span class="tag">DISRUPTION_NODES</span><span>SERIES</span></div>
             <div class="bd" id="leftBlock3">
               {{DISRUPTION_NODES}}
-              <a class="log-line" id="openDisruptionIndex" href="#disruption-index">OPEN DISRUPTION INDEX</a>
             </div>
           </section>
         </div>
 
         <div class="center">
           <div id="overlayLayer" aria-live="polite"></div>
-          <section class="hero" id="hero">
+          <section class="panel active-view-panel" id="activeViewPanel">
+            <div class="hd"><span class="tag">ACTIVE_VIEW</span><span class="active-live-label">LIVE</span></div>
+            <div class="bd scroll log-text">{{LATEST_LOG_TEXT}}</div>
+            <div class="mobile-log-nav" aria-label="mobile log navigation">
+              <button type="button" class="mobile-log-nav-btn prev" id="mobilePrevLogBtn" aria-label="Previous log">‹</button>
+              <button type="button" class="mobile-log-nav-btn next" id="mobileNextLogBtn" aria-label="Next log">›</button>
+            </div>
+          </section>
+
+          <section class="hero home-hero" id="hero">
             <h1 class="title" id="title">OX500 STATION</h1>
             <div class="status" id="status">
               <div class="line"><span class="key">ERROR_STATUS:</span> <span class="val">ARCHIVE ONLINE //</span> ACCESS_CONDITIONAL</div>
@@ -92,26 +100,6 @@
               <a class="btn" href="{{BANDCAMP}}" data-tab="bc">NODE_AUDIO</a>
             </div>
           </section>
-
-          <div class="dock dock-wide" aria-label="station windows">
-            <section class="panel" id="indexLogPanel">
-              <div class="hd">
-                <span class="tag">ACTIVE_VIEW</span>
-                <div class="actions">
-                  <span class="meta-pill" id="activeLogId">LOG {{LATEST_LOG_ID}}</span>
-                  <a class="meta-pill" href="{{LATEST_LOG_URL}}">OPEN LOG PAGE</a>
-                </div>
-              </div>
-              <div class="bd scroll log-text" id="active-log-container">
-              </div>
-              <div id="agent-insert-point"></div>
-              <div class="log-nav" aria-label="log navigation">
-                <button class="meta-pill" id="prev-log" type="button">PREV</button>
-                <button class="meta-pill" id="next-log" type="button">NEXT</button>
-              </div>
-              <div id="memory-scatter" data-prev-log="{{PREVIOUS_LOG_TEXT_PLAIN}}" aria-hidden="true"></div>
-            </section>
-          </div>
         </div>
 
         <div class="rightcol">
@@ -133,12 +121,6 @@ SITEMAP      : ONLINE
 NODE_AUDIO   : ONLINE</div>
           </section>
 
-          <section class="panel" id="agentPanel">
-            <div class="hd"><span class="tag">ALERT</span><span>MSG</span></div>
-            <div class="bd mono" id="agentText">PASSIVE WATCH ACTIVE
-INPUT CHANNEL: DISABLED
-AGENT LINK: DETACHED</div>
-          </section>
         </div>
 
         <div class="bottombar" aria-label="bottom bar">
@@ -166,14 +148,42 @@ AGENT LINK: DETACHED</div>
     </div>
   </noscript>
 
-  <template id="disruptionIndexTemplate">
-    {{DISRUPTION_INDEX_ITEMS}}
-  </template>
+  <script>
+    (function () {
+      var stamp = document.getElementById("topbarLogStamp");
+      var topbarLeft = document.querySelector(".topbar .left");
+      var activeViewHeader = document.querySelector("#activeViewPanel .hd");
+      if (!stamp || !topbarLeft || !activeViewHeader) return;
 
+      var mobileQuery = window.matchMedia("(max-width: 980px)");
+
+      function placeStamp() {
+        if (mobileQuery.matches) {
+          if (stamp.parentElement !== activeViewHeader) {
+            activeViewHeader.appendChild(stamp);
+          }
+          stamp.classList.add("mobile-activeview-log-stamp");
+          return;
+        }
+
+        if (stamp.parentElement !== topbarLeft) {
+          var optional = topbarLeft.querySelector(".optional.deep");
+          topbarLeft.insertBefore(stamp, optional || null);
+        }
+        stamp.classList.remove("mobile-activeview-log-stamp");
+      }
+
+      placeStamp();
+      if (typeof mobileQuery.addEventListener === "function") {
+        mobileQuery.addEventListener("change", placeStamp);
+      } else if (typeof mobileQuery.addListener === "function") {
+        mobileQuery.addListener(placeStamp);
+      }
+      window.addEventListener("orientationchange", placeStamp);
+      window.addEventListener("resize", placeStamp);
+    })();
+  </script>
   <script src="/assets/js/station-core.js?v={{ASSET_VERSION}}" defer></script>
   <script src="/assets/js/uptime.js?v={{ASSET_VERSION}}" defer></script>
-  <script src="/assets/js/memory-scatter.js?v={{ASSET_VERSION}}" defer></script>
-  <script src="/assets/js/log-navigation.js?v={{ASSET_VERSION}}" defer></script>
-  <script src="/assets/js/agent.js?v={{ASSET_VERSION}}" defer></script>
 </body>
 </html>
