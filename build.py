@@ -219,7 +219,7 @@ def write_text(path: Path, content: str) -> None:
             with open(path, "r", encoding="utf-8") as f:
                 if f.read() == content:
                     return
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             # Fallback to overwrite on any read/decode issue.
             pass
     with open(path, "w", encoding="utf-8") as f:
@@ -235,7 +235,7 @@ def copy_file_if_changed(src: Path, dst: Path) -> None:
         try:
             if filecmp.cmp(src, dst, shallow=False):
                 return
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             pass
     shutil.copy2(src, dst)
 
@@ -298,7 +298,7 @@ def make_disruption_rel_path(d_slug: str) -> Path:
 # =========================================================
 # TEMPLATE / LINK NORMALIZATION
 # =========================================================
-def render(template: str, mapping: dict) -> str:
+def render(template: str, mapping: dict, template_name: str, context: str | None = None) -> str:
     def _replace(match: re.Match) -> str:
         key = match.group(1)
         if key not in mapping:
@@ -306,7 +306,14 @@ def render(template: str, mapping: dict) -> str:
         value = mapping.get(key)
         return "" if value is None else str(value)
 
-    return TOKEN_RE.sub(_replace, template)
+    out = TOKEN_RE.sub(_replace, template)
+    if TOKEN_RE.search(out):
+        unresolved = sorted(set(m.group(1) for m in TOKEN_RE.finditer(out)))
+        message = f"Unresolved template tokens in '{template_name}': {unresolved}"
+        if context:
+            message = f"{message} | context: {context}"
+        raise ValueError(message)
+    return out
 
 
 def rewrite_css_links(html_str: str, base_url: str) -> str:
@@ -416,14 +423,24 @@ def parse_log_id_strict(raw_id, context: str) -> int:
 
 def validate_logs(logs: list) -> None:
     errors = []
+    seen_ids = {}
     for idx, log in enumerate(logs):
         ctx = f"logs[{idx}]"
+        log_id_int = None
 
         try:
-            parse_log_id_strict(log.get("id"), f"{ctx}.id")
+            log_id_int = parse_log_id_strict(log.get("id"), f"{ctx}.id")
         except ValueError as exc:
             errors.append(str(exc))
             continue
+
+        if log_id_int in seen_ids:
+            first_idx = seen_ids[log_id_int]
+            errors.append(
+                f"{ctx}.id: duplicate id '{log_id_int}' (first seen at logs[{first_idx}].id)"
+            )
+            continue
+        seen_ids[log_id_int] = idx
 
         try:
             parse_iso_date_strict(log.get("date", ""), f"{ctx}.date (id={log.get('id', '')})")
@@ -574,6 +591,38 @@ def stage_load_and_validate_source() -> dict:
     validate_logs(logs_raw)
     logs = enrich_logs(logs_raw, core_date)
 
+    logs_by_id = sorted(logs, key=lambda item: item["_id_int"])
+    for i in range(1, len(logs_by_id)):
+        prev_log = logs_by_id[i - 1]
+        curr_log = logs_by_id[i]
+        if curr_log["_date_obj"] < prev_log["_date_obj"]:
+            raise ValueError(
+                "Build aborted. Date consistency error by id order: "
+                f"id {prev_log['id']} ({prev_log.get('date', '')}) -> "
+                f"id {curr_log['id']} ({curr_log.get('date', '')})"
+            )
+
+    path_owner = {}
+    for log in logs:
+        effective_slug = slugify(log.get("slug") or log.get("title", ""))
+        log_for_path = dict(log)
+        log_for_path["slug"] = effective_slug
+        rel_path = make_log_rel_path(log_for_path)
+        existing = path_owner.get(rel_path)
+        if existing is not None:
+            raise ValueError(
+                "Build aborted. Log output path collision for "
+                f"'{rel_path.as_posix()}': "
+                f"id={existing['id']} date={existing.get('date', '')} slug={existing['slug']} "
+                f"collides with "
+                f"id={log.get('id', '')} date={log.get('date', '')} slug={effective_slug}"
+            )
+        path_owner[rel_path] = {
+            "id": str(log.get("id", "")),
+            "date": str(log.get("date", "")),
+            "slug": effective_slug,
+        }
+
     return {
         "site": site,
         "core_start": core_start,
@@ -592,10 +641,6 @@ def stage_prepare_templates_and_css():
     t_series_path = ROOT / "template-series.html"
     if t_node is None and t_series_path.exists():
         t_node = read_text(t_series_path)
-
-    css_src = ROOT / "assets" / "css" / "style.css"
-    if css_src.exists():
-        write_text(ASSETS_CSS_DIST, read_text(css_src))
 
     return t_log, t_index, t_node
 
@@ -694,7 +739,7 @@ def stage_build_log_pages(
                 "SYSTEM_CORE_START_UTC": esc(ctx.core_start),
                 "AVAILABLE_COUNT": ctx.available_count,
                 "SYS_VER": esc(ctx.sys_ver),
-                "system_age_days_at_event": esc(log.get("system_age_days_at_event", "")),
+                "SYSTEM_AGE_DAYS_AT_EVENT": esc(log.get("system_age_days_at_event", "")),
                 "CURRENT_LOG_ID": esc(log["id"]),
                 "LOG_MODE": esc(log_mode),
                 "LOG_STATE": esc(log_state),
@@ -706,6 +751,8 @@ def stage_build_log_pages(
                 "BASE_URL": ctx.base_url,
                 "ASSET_VERSION": ctx.asset_version,
             },
+            template_name="template-log.html",
+            context=f"log_id={log['id']} output={rel_path.as_posix()}",
         )
 
         page = rewrite_css_links(page, ctx.base_url)
@@ -724,6 +771,15 @@ def stage_build_disruption_pages(
     sitemap_entries: list,
 ) -> None:
     node_template = t_node or FALLBACK_DISRUPTION_TEMPLATE
+    if t_node:
+        if (ROOT / "template-disruption.html").exists():
+            node_template_name = "template-disruption.html"
+        elif (ROOT / "template-series.html").exists():
+            node_template_name = "template-series.html"
+        else:
+            node_template_name = "template-disruption-inline"
+    else:
+        node_template_name = "FALLBACK_DISRUPTION_TEMPLATE"
 
     for d_slug in disruption_order:
         d = disruptions[d_slug]
@@ -775,6 +831,8 @@ def stage_build_disruption_pages(
                 "BASE_URL": ctx.base_url,
                 "ASSET_VERSION": ctx.asset_version,
             },
+            template_name=node_template_name,
+            context=f"disruption_slug={d_slug} output={rel_path.as_posix()}",
         )
 
         node_page = rewrite_css_links(node_page, ctx.base_url)
@@ -798,9 +856,7 @@ def compose_home_view_models(
     latest_log_text = ""
     latest_log_url = ""
     latest_log_prev_url = ""
-    latest_log_next_url = ""
     latest_log_prev_attrs = 'aria-disabled="true" tabindex="-1"'
-    latest_log_next_attrs = 'aria-disabled="true" tabindex="-1"'
     previous_log_text_plain = ""
 
     if latest_log:
@@ -824,7 +880,7 @@ def compose_home_view_models(
         up = url(rel(log))
         raw_title = str(log.get("title", ""))
         title = re.sub(r"^LOG\s+\d+\s*//\s*", "", raw_title, flags=re.IGNORECASE).strip()
-        recent_logs.append(make_log_line_link(up, f'LOG {log["id"]}', title or raw_title, extra_class="naked"))
+        recent_logs.append(make_log_line_link(up, f'LOG {log["id"]} //', title or raw_title, extra_class="naked"))
 
     for idx, d_slug in enumerate(disruption_order[:HOME_DISRUPTION_LIMIT]):
         d = disruptions[d_slug]
@@ -868,7 +924,7 @@ def compose_home_view_models(
         d_name = d["name"]
         count = len(d["logs"])
         node_url = url(disruption_rel(d_slug))
-        disruptions_nav_payload.append({"name": d_name, "count": count, "url": node_url})
+        disruptions_nav_payload.append({"name": d_name, "count": count, "url": node_url, "slug": d_slug})
         if len(disruption_index_items) < DISRUPTION_INDEX_PAGE_SIZE:
             disruption_index_items.append(
                 make_disruption_node_link(node_url, d_name, count, extra_class="disruption-archive-item")
@@ -907,9 +963,7 @@ def compose_home_view_models(
         "latest_log_text": latest_log_text,
         "latest_log_url": latest_log_url,
         "latest_log_prev_url": latest_log_prev_url,
-        "latest_log_next_url": latest_log_next_url,
         "latest_log_prev_attrs": latest_log_prev_attrs,
-        "latest_log_next_attrs": latest_log_next_attrs,
         "previous_log_text_plain": previous_log_text_plain,
         "recent_logs": recent_logs,
         "blocks": blocks,
@@ -951,6 +1005,13 @@ def stage_export_json_data(logs_sorted: list, disruptions_nav_payload: list, rel
     logs_nav_payload = []
     for log in logs_sorted:
         rel_path = rel(log)
+        raw_disruption = str(log.get("series") or log.get("disruption") or "").strip()
+        if raw_disruption:
+            disruption_title_clean = disruption_display_name(raw_disruption)
+            disruption_slug_clean = disruption_slug(raw_disruption)
+        else:
+            disruption_title_clean = ""
+            disruption_slug_clean = ""
         logs_nav_payload.append(
             {
                 "id": str(log.get("id", "")),
@@ -962,6 +1023,8 @@ def stage_export_json_data(logs_sorted: list, disruptions_nav_payload: list, rel
                 "series": str(log.get("series") or log.get("disruption") or ""),
                 "text": str(log.get("text", "")),
                 "excerpt": str(log.get("excerpt", "")),
+                "disruption_title_clean": disruption_title_clean,
+                "disruption_slug_clean": disruption_slug_clean,
             }
         )
 
@@ -1020,12 +1083,12 @@ def stage_render_homepage(t_index: str, ctx: SiteContext, home_vm: dict) -> None
             "LATEST_LOG_TEXT": home_vm["latest_log_text"],
             "LATEST_LOG_URL": home_vm["latest_log_url"],
             "LATEST_LOG_PREV_URL": home_vm["latest_log_prev_url"],
-            "LATEST_LOG_NEXT_URL": home_vm["latest_log_next_url"],
             "LATEST_LOG_PREV_ATTRS": home_vm["latest_log_prev_attrs"],
-            "LATEST_LOG_NEXT_ATTRS": home_vm["latest_log_next_attrs"],
             "PREVIOUS_LOG_TEXT_PLAIN": esc(home_vm["previous_log_text_plain"]),
             "ASSET_VERSION": ctx.asset_version,
         },
+        template_name="template-index.html",
+        context="output=index.html",
     )
     index_html = rewrite_css_links(index_html, ctx.base_url)
     write_text(DIST / "index.html", index_html)

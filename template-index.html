@@ -48,7 +48,7 @@
       <div class="grid grid-sidebars-wide">
         <div class="topbar" aria-label="system bar">
           <div class="left">
-            <span class="pill">NODE: OX500_CORE</span>
+            <span class="pill" id="topbarNodePill">NODE: OX500_CORE</span>
             <span class="pill log-pill" id="topbarLogStamp"><b>LOG</b> {{LATEST_LOG_ID}} {{LATEST_LOG_DATE}}</span>
             <span class="pill optional deep">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
           </div>
@@ -78,7 +78,24 @@
         <div class="center">
           <div id="overlayLayer" aria-live="polite"></div>
           <section class="panel active-view-panel" id="activeViewPanel">
-            <div class="hd"><span class="tag">ACTIVE_VIEW</span><span class="active-live-label">LIVE</span></div>
+            <div class="hd">
+              <span class="tag">ACTIVE_VIEW</span>
+              <div class="active-view-mode-switch" id="activeViewModeSwitch" role="tablist" aria-label="Active view mode">
+                <button type="button" class="panel-btn active-view-toggle-btn panel-hd-state-text" id="scanModeBtn" data-av-mode="scan" aria-pressed="false" aria-label="Toggle LIVE and SCAN">
+                  <span class="mode-label mode-label-live">LIVE</span>
+                  <span class="active-view-mode-sep panel-hd-state-text" aria-hidden="true">/</span>
+                  <span class="mode-label mode-label-scan">SCAN</span>
+                </button>
+              </div>
+            </div>
+            <div class="active-view-actions" hidden></div>
+            <div id="avScan" hidden>
+              <div id="scanInputWrapper">
+                <span class="scan-prefix">&gt; SCAN_QUERY:</span>
+                <input id="scanInput" type="text" autocomplete="off" placeholder="id / title / tag / disruption" />
+              </div>
+              <div id="scanResults" class="logs"></div>
+            </div>
             <div class="bd scroll log-text">{{LATEST_LOG_TEXT}}</div>
             <div class="mobile-log-nav" aria-label="mobile log navigation">
               <button type="button" class="mobile-log-nav-btn prev" id="mobilePrevLogBtn" aria-label="Previous log">‹</button>
@@ -94,11 +111,11 @@
             </div>
 
             <div class="controls" aria-label="navigation">
-              <a class="btn primary" href="{{CANONICAL}}" data-tab="core">CORE_LAYOUT</a>
-              <a class="btn" href="{{SITEMAP_URL}}" data-tab="map">SITEMAP</a>
-              <a class="btn" href="{{GITHUB}}" data-tab="src">SOURCE</a>
-              <a class="btn" href="{{YOUTUBE}}" data-tab="yt">TRANSMIT</a>
-              <a class="btn" href="{{BANDCAMP}}" data-tab="bc">NODE_AUDIO</a>
+              <a class="btn bracket" href="{{CANONICAL}}" data-tab="core">CORE_LAYOUT</a>
+              <a class="btn bracket" href="{{SITEMAP_URL}}" data-tab="map">SITEMAP</a>
+              <a class="btn bracket" href="{{GITHUB}}" data-tab="src">SOURCE</a>
+              <a class="btn bracket" href="{{YOUTUBE}}" data-tab="yt">TRANSMIT</a>
+              <a class="btn bracket" href="{{BANDCAMP}}" data-tab="bc">NODE_AUDIO</a>
             </div>
           </section>
         </div>
@@ -152,9 +169,15 @@ NODE_AUDIO   : ONLINE</div>
   <script>
     (function () {
       var stamp = document.getElementById("topbarLogStamp");
+      var scanBtn = document.getElementById("scanModeBtn");
+      var scanWrap = document.getElementById("avScan");
+      var modeSwitch = document.getElementById("activeViewModeSwitch");
+      var activeViewPanel = document.getElementById("activeViewPanel");
+      var activeViewBody = activeViewPanel ? activeViewPanel.querySelector(".bd") : null;
       var topbarLeft = document.querySelector(".topbar .left");
+      var topbarRight = document.querySelector(".topbar .right");
       var activeViewHeader = document.querySelector("#activeViewPanel .hd");
-      if (!stamp || !topbarLeft || !activeViewHeader) return;
+      if (!stamp || !topbarLeft || !topbarRight || !activeViewHeader || !scanBtn || !modeSwitch || !scanWrap || !activeViewPanel || !activeViewBody) return;
 
       var mobileQuery = window.matchMedia("(max-width: 980px)");
 
@@ -163,6 +186,13 @@ NODE_AUDIO   : ONLINE</div>
           if (stamp.parentElement !== activeViewHeader) {
             activeViewHeader.appendChild(stamp);
           }
+          if (scanBtn.parentElement !== topbarRight) {
+            topbarRight.insertBefore(scanBtn, topbarRight.firstChild || null);
+          }
+          if (scanWrap.parentElement !== activeViewPanel) {
+            activeViewPanel.insertBefore(scanWrap, activeViewBody);
+          }
+          scanBtn.classList.add("mobile-topbar-scan");
           stamp.classList.add("mobile-activeview-log-stamp");
           return;
         }
@@ -171,6 +201,13 @@ NODE_AUDIO   : ONLINE</div>
           var optional = topbarLeft.querySelector(".optional.deep");
           topbarLeft.insertBefore(stamp, optional || null);
         }
+        if (scanBtn.parentElement !== modeSwitch) {
+          modeSwitch.appendChild(scanBtn);
+        }
+        if (scanWrap.parentElement !== activeViewPanel) {
+          activeViewPanel.insertBefore(scanWrap, activeViewBody);
+        }
+        scanBtn.classList.remove("mobile-topbar-scan");
         stamp.classList.remove("mobile-activeview-log-stamp");
       }
 
