@@ -65,7 +65,8 @@ FALLBACK_DISRUPTION_TEMPLATE = """<!DOCTYPE html>
   <meta http-equiv="Content-Language" content="{{LANG}}" />
 
   <meta name="description" content="{{DESCRIPTION}}" />
-  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <meta name="robots" content="noindex, nofollow, noarchive" />
+  <meta name="googlebot" content="noindex, nofollow, noarchive" />
 
   <link rel="canonical" href="{{CANONICAL}}" />
   <link rel="source" href="{{GITHUB}}">
