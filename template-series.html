@@ -47,7 +47,6 @@
           </div>
           <div class="right">
             <span class="pill optional deep">SYS <b id="sysVer">{{SYS_VER}}</b></span>
-            <span class="pill optional deep">CORE ACTIVE SINCE <span id="system-uptime"></span></span>
             <span class="pill time-pill">TIME <b id="clock">--:--:--</b></span>
             <span class="pill optional deep">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
           </div>
@@ -118,7 +117,7 @@ RULE: LOG EVERYTHING</div>
 
         <div class="rightcol">
           <section class="panel">
-            <div class="hd"><span class="tag">DIAGNOSTICS</span><span>THERM</span></div>
+            <div class="hd"><span class="tag">DIAGNOSTICS</span><span>STATE</span></div>
             <div class="bd mono">CPU LOAD: 94% [CRITICAL]
 NET: UNSTABLE
 AUTH: FAILED
@@ -145,7 +144,7 @@ MODE      : OBSERVE_ONLY</div>
             <br />
             BUILD <b>OK</b> // NODE SYNC
             <br />
-            08 1358077829.11
+            CORE ACTIVE SINCE <b id="system-uptime"></b>
           </div>
         </div>
 
@@ -159,8 +158,16 @@ MODE      : OBSERVE_ONLY</div>
     </div>
   </noscript>
 
-  <script src="/assets/js/station-core.js?v={{ASSET_VERSION}}" defer></script>
-  <script src="/assets/js/uptime.js?v={{ASSET_VERSION}}" defer></script>
+  <script src="/assets/js/event-bus.js?v={{ASSET_VERSION}}"></script>
+  <script src="/assets/js/utils.js?v={{ASSET_VERSION}}"></script>
+  <script src="/assets/js/boot.js?v={{ASSET_VERSION}}"></script>
+  <script src="/assets/js/tick.js?v={{ASSET_VERSION}}"></script>
+  <script src="/assets/js/feed.js?v={{ASSET_VERSION}}"></script>
+  <script src="/assets/js/logs-loader.js?v={{ASSET_VERSION}}"></script>
+  <script src="/assets/js/mobile-logs.js?v={{ASSET_VERSION}}"></script>
+  <script src="/assets/js/glitch.js?v={{ASSET_VERSION}}"></script>
+  <script src="/assets/js/diagnostics.js?v={{ASSET_VERSION}}"></script>
+  <script src="/assets/js/uptime.js?v={{ASSET_VERSION}}"></script>
 </body>
 </html>
 

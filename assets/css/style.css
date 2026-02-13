@@ -711,6 +711,49 @@ body[data-layout="home"] .home-hero .home-link:hover{
 #disruptionNodesPanel .log-line.naked .node-count{opacity:.55;}
 #disruptionNodesPanel .log-line.naked .node-suffix{opacity:.62;}
 
+/* Diagnostics should remain fully readable; do not truncate diegetic telemetry lines. */
+#rightBlock1{
+  white-space:pre-wrap;
+  overflow:auto;
+  text-overflow:clip;
+  word-break:normal;
+  overflow-wrap:normal;
+  transition:filter .22s ease, opacity .22s ease;
+}
+
+#rightBlock1 .diag-line{
+  display:block;
+}
+
+#rightBlock1 .diag-phase-value{
+  font-weight:700;
+}
+
+#rightBlock1 .diag-phase-value.diag-phase-nominal{
+  color:var(--cyan);
+}
+
+#rightBlock1 .diag-phase-value.diag-phase-unstable{
+  color:rgba(255,194,140,.96);
+}
+
+#rightBlock1 .diag-phase-value.diag-phase-incident{
+  color:rgba(255,158,126,.98);
+}
+
+#rightBlock1.diag-pulse{
+  filter:brightness(1.08);
+}
+
+@media (prefers-reduced-motion: reduce){
+  #rightBlock1{
+    transition:none;
+  }
+  #rightBlock1.diag-pulse{
+    filter:none;
+  }
+}
+
 
 .nav-home,.nav-prev,.nav-next{
   display:inline-flex;
@@ -753,9 +796,11 @@ a:hover{color:rgba(255,255,255,.92);}
 .live-feed-line{
   font-family:var(--ox-font-mono);
   font-size:11px;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:anywhere;
+  word-break:break-word;
   max-width:300px;
 }
 
@@ -1123,8 +1168,11 @@ body[data-layout="home"] .home-hero .controls{
   .live-feed-line{
     display:block;
     max-width:100%;
-    overflow:hidden;
-    text-overflow:ellipsis;
+    overflow:visible;
+    text-overflow:clip;
+    white-space:normal;
+    overflow-wrap:anywhere;
+    word-break:break-word;
   }
   .topbar{backdrop-filter:none;}
   .topbar{flex-direction:column;align-items:stretch;padding:var(--s11);}

@@ -323,9 +323,9 @@ def rewrite_css_links(html_str: str, base_url: str) -> str:
 
     def _replace_href(match: re.Match) -> str:
         whole_tag = match.group(0)
-        href_value = (match.group(2) or "").strip()
+        href_value = (match.group(3) or "").strip()
         if href_value in legacy_values:
-            quote = match.group(1)
+            quote = match.group(2)
             return re.sub(
                 r'href\s*=\s*(["\'])(.*?)\1',
                 f'href={quote}/assets/css/style.css{quote}',
@@ -350,6 +350,7 @@ def compute_asset_version() -> str:
     """Deterministic hash for cache-busting based on source assets + templates."""
     hasher = hashlib.sha256()
     paths = [
+        ROOT / "logs.json",
         ROOT / "template-index.html",
         ROOT / "template-log.html",
         ROOT / "template-series.html",
@@ -363,6 +364,14 @@ def compute_asset_version() -> str:
             for chunk in iter(lambda: f.read(8192), b""):
                 hasher.update(chunk)
     return hasher.hexdigest()[:12]
+
+
+def derive_sensor_code(asset_version: str) -> str:
+    """Deterministic sensor code for a given build/version."""
+    digest = hashlib.sha1((asset_version or "").encode("utf-8")).hexdigest()
+    head = digest[:3].upper()
+    tail = int(digest[3:5], 16) % 100
+    return f"0x{head}-{tail:02d}"
 
 
 # =========================================================
@@ -572,13 +581,9 @@ def stage_load_and_validate_source() -> dict:
     }
 
 
-def stage_prepare_templates_and_css(sys_ver: str, available_count: str):
+def stage_prepare_templates_and_css():
     t_log = read_text(ROOT / "template-log.html")
     t_index = read_text(ROOT / "template-index.html")
-    t_log = t_log.replace("{{SYS_VER}}", esc(sys_ver))
-    t_index = t_index.replace("{{SYS_VER}}", esc(sys_ver))
-    t_log = t_log.replace("{{AVAILABLE_COUNT}}", esc(available_count))
-    t_index = t_index.replace("{{AVAILABLE_COUNT}}", esc(available_count))
 
     t_node_path = ROOT / "template-disruption.html"
     t_node = read_text(t_node_path) if t_node_path.exists() else None
@@ -605,6 +610,8 @@ def stage_group_disruptions(logs_sorted: list):
             continue
         d_name = disruption_display_name(raw)
         d_slug = disruption_slug(raw)
+        if d_slug in disruptions and disruptions[d_slug]["name"] != d_name:
+            print(f"WARNING: slug collision '{d_slug}': '{disruptions[d_slug]['name']}' vs '{d_name}'")
         disruptions.setdefault(d_slug, {"name": d_name, "logs": []})
         disruptions[d_slug]["logs"].append(log)
 
@@ -741,6 +748,8 @@ def stage_build_disruption_pages(
             {
                 "LANG": ctx.lang,
                 "SYSTEM_CORE_START_UTC": esc(ctx.core_start),
+                "SYS_VER": esc(ctx.sys_ver),
+                "AVAILABLE_COUNT": ctx.available_count,
                 "PAGE_TITLE": esc(page_title),
                 "DESCRIPTION": esc(description),
                 "CANONICAL": canonical,
@@ -981,6 +990,9 @@ def stage_export_json_data(logs_sorted: list, disruptions_nav_payload: list, rel
 
 
 def stage_render_homepage(t_index: str, ctx: SiteContext, home_vm: dict) -> None:
+    sensor_label = "SENSOR DRIFT VECTOR"
+    sensor_code = derive_sensor_code(ctx.asset_version)
+
     index_html = render(
         t_index,
         {
@@ -996,10 +1008,10 @@ def stage_render_homepage(t_index: str, ctx: SiteContext, home_vm: dict) -> None
             "YOUTUBE": ctx.youtube,
             "BANDCAMP": ctx.bandcamp,
             "GITHUB": ctx.github_repo,
+            "SENSOR_LABEL": sensor_label,
+            "SENSOR_CODE": sensor_code,
             "RECENT_LOGS": "\n".join(home_vm["recent_logs"]),
-            "DISRUPTION_BLOCKS": "\n\n".join(home_vm["blocks"]),
             "DISRUPTION_NODES": "\n".join(home_vm["disruption_nodes"]),
-            "DISRUPTION_INDEX_ITEMS": '<div class="disruption-archive-grid">' + "\n".join(home_vm["disruption_index_items"]) + "</div>",
             "DISRUPTION_SERIES_JSONLD": json.dumps(home_vm["disruption_series_jsonld"], ensure_ascii=False, indent=2),
             "CURRENT_LOG_ID": home_vm["latest_log_id"],
             "LATEST_LOG_ID": home_vm["latest_log_id"],
@@ -1090,19 +1102,19 @@ def build():
     logs = source["logs"]
 
     # ===== NORMALIZE SLUGS =====
-    for l in logs:
-        l["slug"] = slugify(l.get("slug") or l.get("title", ""))
+    for log in logs:
+        log["slug"] = slugify(log.get("slug") or log.get("title", ""))
 
     # ===== FILTER OUT FUTURE-DATED LOGS (do not generate/publish yet) =====
     asset_version = compute_asset_version()
     today = utc_today()
-    logs = [l for l in logs if l["_date_obj"] <= today]
+    logs = [log for log in logs if log["_date_obj"] <= today]
 
     # newest first
     logs_sorted = sorted(logs, key=lambda x: x["_id_int"], reverse=True)
     generated_log_pages = len(logs_sorted)
     available_count = f"{generated_log_pages:04d}"
-    t_log, t_index, t_node = stage_prepare_templates_and_css(source["sys_ver"], available_count)
+    t_log, t_index, t_node = stage_prepare_templates_and_css()
 
     ctx = SiteContext(
         base_url=site["base_url"].rstrip("/"),
