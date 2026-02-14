@@ -4,6 +4,8 @@ import shutil
 import filecmp
 import hashlib
 import unicodedata
+import subprocess
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +16,16 @@ import html
 # =========================================================
 ROOT = Path(__file__).parent
 DIST = ROOT / "dist"
+
+
+# =========================================================
+# JS BUNDLE CONFIG
+# =========================================================
+JS_ENTRY        = ROOT / "assets" / "js" / "main.js"
+JS_BUNDLE_REL   = Path("assets") / "js" / "bundle.js"
+JS_BUNDLE_DIST  = DIST / JS_BUNDLE_REL
+JS_TARGET       = "es2018"          # safe for all modern browsers
+JS_MINIFY       = True              # set False for easier debugging
 
 
 # Assets paths (generated)
@@ -553,6 +565,90 @@ def jsonld_log_creative_work(base_url: str, url_path: str, log_id: str) -> str:
 # =========================================================
 # BUILD STAGES
 # =========================================================
+
+def _find_esbuild() -> str | None:
+    """Find the esbuild executable, handling Windows (.cmd) and Unix variants.
+
+    Search order:
+      1. npx esbuild  (works everywhere, no global install needed)
+      2. esbuild / esbuild.cmd  (global npm install)
+      3. node_modules/.bin/esbuild  (local npm install)
+    Returns the executable string to use, or None if not found.
+    """
+    import shutil
+
+    # On Windows npm installs create .cmd wrappers
+    candidates = ["esbuild", "esbuild.cmd"] if sys.platform == "win32" else ["esbuild"]
+    for exe in candidates:
+        if shutil.which(exe):
+            return exe
+
+    # Local node_modules fallback (if someone ran `npm install esbuild`)
+    local_suffix = "esbuild.cmd" if sys.platform == "win32" else "esbuild"
+    local = ROOT / "node_modules" / ".bin" / local_suffix
+    if local.exists():
+        return str(local)
+
+    return None
+
+
+def stage_bundle_js() -> None:
+    """Bundle assets/js/main.js → dist/assets/js/bundle.js via esbuild.
+
+    esbuild must be available. Install options:
+      npm install -g esbuild          (global, recommended)
+      npm install --save-dev esbuild  (local, in this project folder)
+    Works on Windows, macOS and Linux — detects .cmd wrapper automatically.
+    """
+    if not JS_ENTRY.exists():
+        print(f"SKIP JS bundle — entry not found: {JS_ENTRY}")
+        return
+
+    esbuild_exe = _find_esbuild()
+    if not esbuild_exe:
+        print(
+            "\nERROR: esbuild not found.\n"
+            "Install it with one of:\n"
+            "  npm install -g esbuild          (global — then re-run build.py)\n"
+            "  npm install --save-dev esbuild  (local in project folder)\n"
+            "\nOn Windows make sure Node.js is on PATH and restart your terminal after install.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    JS_BUNDLE_DIST.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        esbuild_exe,
+        str(JS_ENTRY),
+        "--bundle",
+        f"--outfile={JS_BUNDLE_DIST}",
+        f"--target={JS_TARGET}",
+        "--format=iife",    # safe IIFE wrapper, no global leakage
+        "--platform=browser",
+    ]
+    if JS_MINIFY:
+        cmd.append("--minify")
+
+    try:
+        result = subprocess.run(
+            cmd,
+            check=True,
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+            # On Windows, shell=True is needed when exe is a .cmd script
+            shell=(sys.platform == "win32"),
+        )
+        size_kb = JS_BUNDLE_DIST.stat().st_size / 1024
+        print(f"JS bundle OK — {JS_BUNDLE_REL.as_posix()} ({size_kb:.1f} kB)")
+        if result.stderr:
+            print(result.stderr.strip())
+    except subprocess.CalledProcessError as exc:
+        print(f"ERROR: esbuild failed:\n{exc.stderr}", file=sys.stderr)
+        sys.exit(1)
+
+
 def stage_prepare_output() -> None:
     if CLEAN_DIST_ON_BUILD and DIST.exists():
         shutil.rmtree(DIST)
@@ -1161,6 +1257,7 @@ def stage_write_robots_and_sitemap(base_url: str, logs_sorted: list, sitemap_ent
 
 def build():
     stage_prepare_output()
+    stage_bundle_js()
     source = stage_load_and_validate_source()
     site = source["site"]
     logs = source["logs"]
@@ -1235,7 +1332,7 @@ def build():
 
     stage_write_robots_and_sitemap(ctx.base_url, logs_sorted, sitemap_entries)
 
-    print("BUILD OK - index, logs, disruption nodes, logs pages json, sitemap, robots generated")
+    print("BUILD OK — index, logs, disruption nodes, logs pages json, sitemap, robots, JS bundle generated")
 
 
 if __name__ == "__main__":
