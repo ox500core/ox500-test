@@ -11,6 +11,7 @@ import {
   resolveCurrentIndex,
   setCurrentEntryId,
   maybePrefetchAroundCurrent,
+  getState,
 } from './store.js';
 
 // === TEXT HELPERS ===
@@ -92,17 +93,31 @@ export function pickEntryForDisruptionSlug(slug) {
 
 export function setLogStamp(stampEl, id, date) {
   if (!stampEl) return;
-  stampEl.textContent = '';
-  const label = document.createElement('b');
-  label.textContent = 'LOG';
-  stampEl.appendChild(label);
-  stampEl.appendChild(document.createTextNode(` ${id} ${date}`));
+  stampEl.textContent = `${id} ${date}`;
+  const nodePill = document.getElementById('topbarNodePill');
+  if (!nodePill) return;
+  nodePill.textContent = 'NODE: ';
+  const valueEl = document.createElement('b');
+  valueEl.textContent = `LOG ${id} ${date}`;
+  nodePill.appendChild(valueEl);
 }
 
 export function setNodePill(text) {
   const nodePill = document.getElementById('topbarNodePill');
   if (!nodePill) return;
-  nodePill.textContent = String(text || '');
+  const raw = String(text || '');
+  nodePill.textContent = '';
+  const idx = raw.indexOf(':');
+  if (idx > 0) {
+    const prefix = raw.slice(0, idx + 1);
+    const value = raw.slice(idx + 1).trim();
+    nodePill.appendChild(document.createTextNode(`${prefix} `));
+    const valueEl = document.createElement('b');
+    valueEl.textContent = value;
+    nodePill.appendChild(valueEl);
+    return;
+  }
+  nodePill.textContent = raw;
 }
 
 export function markCurrentRecentLog(recentLogsRoot, logId) {
@@ -111,6 +126,16 @@ export function markCurrentRecentLog(recentLogsRoot, logId) {
   recentLogsRoot.querySelectorAll('a.log-line[href]').forEach((link) => {
     const id = logIdFromHref(link.getAttribute('href'));
     link.classList.toggle('is-current', Boolean(currentId && id === currentId));
+  });
+}
+
+export function markCurrentDisruptionNode(entry) {
+  const disruptionNodesRoot = document.getElementById('leftBlock3');
+  if (!disruptionNodesRoot) return;
+  const currentKey = String(disruptionKey(entry) || '').trim().toLowerCase();
+  disruptionNodesRoot.querySelectorAll('a.log-line[href]').forEach((link) => {
+    const slug = disruptionSlugFromHref(link.getAttribute('href'));
+    link.classList.toggle('is-current', Boolean(currentKey && slug === currentKey));
   });
 }
 
@@ -133,8 +158,8 @@ export function setViewMode(els, mode) {
   }
 
   if (isScanMode) setNodePill('NODE: QUERY_PORT');
-  else if (mode === 'disruption-list') setNodePill('NODE: DISRUPTION_LIST');
-  else setNodePill('NODE: LOG_STREAM');
+  else if (mode === 'disruption-list') setNodePill('NODE: DISRUPTION');
+  else setNodePill('NODE: LOG');
 }
 
 // === RENDER FUNCTIONS ===
@@ -176,6 +201,7 @@ export function renderDisruptionList(els, mobileQuery, sourceEntry, stampEl) {
     : `<a class="mobile-active-log-link" data-open-disruption-list="1" href="#">${utils.escapeHtml(nodeTitle)}</a>`;
 
   setViewMode(els, 'disruption-list');
+  markCurrentDisruptionNode(entry);
   textEl.innerHTML =
     `<div class="mobile-active-log-title" ${titleActionAttrs}>` +
     `<span class="mobile-active-log-prefix">DISRUPTION //</span> ` +
@@ -183,6 +209,62 @@ export function renderDisruptionList(els, mobileQuery, sourceEntry, stampEl) {
     `<div class="mobile-active-log-entry">// ${list.length} LOGS</div>` +
     `</div>` +
     `<div class="mobile-disruption-list">${listHtml}</div>`;
+  _resetActiveViewScroll(textEl, mobileQuery);
+}
+
+const ENTRY_SCROLL_RESET_RETRY_DELAYS_MS = [0, 60, 80, 180];
+
+function _resetActiveViewScroll(textEl, mobileQuery) {
+  if (!textEl) return;
+
+  const panel = textEl.closest?.('#activeViewPanel') || textEl.closest?.('.active-view-panel') || null;
+  const pageScroll = document.scrollingElement || document.documentElement || document.body || null;
+  const coarsePointer = typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: coarse)').matches;
+  const shouldResetPage = Boolean(mobileQuery?.matches || coarsePointer);
+  const scrollTargets = [textEl];
+  let cur = textEl.parentElement;
+  while (cur) {
+    const style = window.getComputedStyle(cur);
+    const oy = style.overflowY;
+    const canScroll = (oy === 'auto' || oy === 'scroll' || oy === 'overlay') &&
+      cur.scrollHeight > cur.clientHeight;
+    if (canScroll) scrollTargets.push(cur);
+    if (panel && cur === panel) break;
+    cur = cur.parentElement;
+  }
+
+  const reset = () => {
+    scrollTargets.forEach((node) => {
+      node.scrollTop = 0;
+      if (typeof node.scrollTo === 'function') {
+        node.scrollTo(0, 0);
+      }
+    });
+
+    if (shouldResetPage) {
+      if (pageScroll) pageScroll.scrollTop = 0;
+      if (document.documentElement) document.documentElement.scrollTop = 0;
+      if (document.body) document.body.scrollTop = 0;
+      if (typeof window.scrollTo === 'function') window.scrollTo(0, 0);
+    }
+  };
+
+  const activeEl = document.activeElement;
+  if (shouldResetPage && activeEl?.classList?.contains('mobile-log-nav-btn')) {
+    activeEl.blur();
+  }
+
+  reset();
+  if (typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(() => {
+      reset();
+      window.requestAnimationFrame(reset);
+    });
+  }
+  ENTRY_SCROLL_RESET_RETRY_DELAYS_MS.forEach((delay) => {
+    window.setTimeout(reset, delay);
+  });
 }
 
 export function renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, updateControls) {
@@ -209,9 +291,10 @@ export function renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, up
     `</div>`;
 
   setViewMode(els, 'entry');
-  if (wasScanMode) resetScanUi(els);
+  if (wasScanMode && !getState().fromSearch) resetScanUi(els);
 
   textEl.innerHTML = titleHtml + bodyHtml;
+  _resetActiveViewScroll(textEl, mobileQuery);
 
   const id = entry?.id || '----';
   const date = entry?.date || '----';
@@ -220,6 +303,7 @@ export function renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, up
   const currentId = utils.normalizeId(entry?.id || '');
   setCurrentEntryId(currentId);
   markCurrentRecentLog(recentLogsRoot, currentId);
+  markCurrentDisruptionNode(entry);
 
   if (document.body) {
     document.body.dataset.logLevel = currentId;

@@ -9,19 +9,23 @@ import {
   isLoaded,
   resolveCurrentIndex,
   getOrderedIds,
+  getLogs,
   getLogsById,
   setCurrentEntryId,
+  isFromSearch,
+  setFromSearch,
 } from './store.js';
 import {
   renderEntry,
   renderDisruptionList,
+  disruptionKey,
   disruptionSlugFromHref,
   logIdFromHref,
   pickEntryForDisruptionSlug,
   getCurrentEntry,
 } from './renderer.js';
 import { initGestureListeners } from './gestures.js';
-import { initScannerListeners } from './scanner.js';
+import { initScannerListeners, openScan } from './scanner.js';
 import { MOBILE_BREAKPOINT } from './config.js';
 
 // === INIT ===
@@ -41,6 +45,7 @@ export function initMobileLogs() {
   const disruptionNodesRoot = document.getElementById('leftBlock3');
   const prevBtn = document.getElementById('mobilePrevLogBtn');
   const nextBtn = document.getElementById('mobileNextLogBtn');
+  const backFromSearchBtn = document.getElementById('backFromSearchBtn');
   const mobileNav = panel?.querySelector('.mobile-log-nav');
   const scanWrap = document.getElementById('avScan');
   const scanInput = document.getElementById('scanInput');
@@ -56,7 +61,7 @@ export function initMobileLogs() {
   const els = {
     panel, textEl, stampEl, mobileNav,
     scanWrap, scanInput, scanResults, scanBtn,
-    prevBtn, nextBtn,
+    prevBtn, nextBtn, backFromSearchBtn,
     // Convenience: scanner needs to set currentEntryId via the bundle
     get logsById() { return getLogsById(); },
     setCurrentEntryId,
@@ -79,6 +84,10 @@ export function initMobileLogs() {
 
   function updateControls() {
     if (!prevBtn || !nextBtn) return;
+    if (backFromSearchBtn) {
+      const showBack = Boolean(isFromSearch() && textEl?.dataset?.viewMode === 'entry');
+      backFromSearchBtn.hidden = !showBack;
+    }
     if (!isLoaded() || !getOrderedIds().length) {
       prevBtn.disabled = false;
       nextBtn.disabled = false;
@@ -86,6 +95,41 @@ export function initMobileLogs() {
       nextBtn.classList.remove('disabled');
       return;
     }
+
+    if (textEl?.dataset?.viewMode === 'disruption-list') {
+      const currentEntry = getCurrentEntry(stampEl);
+      const currentKey = disruptionKey(currentEntry);
+      if (!currentKey) {
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+        prevBtn.classList.add('disabled');
+        nextBtn.classList.add('disabled');
+        return;
+      }
+
+      const newestByKey = new Map();
+      getLogs().forEach((entry) => {
+        const key = disruptionKey(entry);
+        if (!key) return;
+        const idNum = Number(String(entry?.id || '').replace(/\D/g, ''));
+        const prev = newestByKey.get(key);
+        if (!prev || idNum > prev.idNum) newestByKey.set(key, { idNum, entry });
+      });
+
+      const disruptionOrder = Array.from(newestByKey.entries())
+        .sort((a, b) => a[1].idNum - b[1].idNum)
+        .map(([key]) => key);
+      const idx = disruptionOrder.indexOf(currentKey);
+      const canPrev = idx > 0;
+      const canNext = idx >= 0 && idx < disruptionOrder.length - 1;
+
+      prevBtn.disabled = !canPrev;
+      nextBtn.disabled = !canNext;
+      prevBtn.classList.toggle('disabled', !canPrev);
+      nextBtn.classList.toggle('disabled', !canNext);
+      return;
+    }
+
     const idx = resolveCurrentIndex(stampEl);
     const canPrev = idx > 0;
     const canNext = idx >= 0 && idx < getOrderedIds().length - 1;
@@ -110,12 +154,14 @@ export function initMobileLogs() {
       if (mobileQuery.matches) {
         e.preventDefault();
         renderDisruptionList(els, mobileQuery, _getCurrentEntry(), stampEl);
+        updateControls();
         return;
       }
       const linkTarget = e.target?.closest?.(".mobile-active-log-link[data-open-disruption-list='1']");
       if (linkTarget) {
         e.preventDefault();
         renderDisruptionList(els, mobileQuery, _getCurrentEntry(), stampEl);
+        updateControls();
         return;
       }
     }
@@ -126,7 +172,10 @@ export function initMobileLogs() {
     const logId = utils.normalizeId(item.getAttribute('data-log-id'));
     if (!logId) return;
     const entry = getLogsById().get(logId);
-    if (entry) renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, updateControls);
+    if (entry) {
+      setFromSearch(false);
+      renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, updateControls);
+    }
   });
 
   textEl.addEventListener('keydown', (e) => {
@@ -136,6 +185,7 @@ export function initMobileLogs() {
     if (!target) return;
     e.preventDefault();
     renderDisruptionList(els, mobileQuery, _getCurrentEntry(), stampEl);
+    updateControls();
   });
 
   // === DISRUPTION NODE CLICKS ===
@@ -154,7 +204,9 @@ export function initMobileLogs() {
       const entry = pickEntryForDisruptionSlug(slug);
       if (!entry) return;
       setCurrentEntryId(utils.normalizeId(entry.id));
+      setFromSearch(false);
       renderDisruptionList(els, mobileQuery, entry, stampEl);
+      updateControls();
     });
   }
 
@@ -174,10 +226,25 @@ export function initMobileLogs() {
       const entry = getLogsById().get(logId);
       if (!entry) return;
       setCurrentEntryId(logId);
+      setFromSearch(false);
       renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, updateControls);
     });
   }
 
+  if (backFromSearchBtn) {
+    backFromSearchBtn.addEventListener('click', async () => {
+      if (!isFromSearch()) return;
+      await openScan(els, mobileQuery);
+      updateControls();
+    }, { passive: true });
+  }
+  if (mobileNav) {
+    mobileNav.addEventListener('dblclick', (e) => {
+      const btn = e.target?.closest?.('.mobile-log-nav-btn');
+      if (!btn) return;
+      e.preventDefault();
+    }, { passive: false });
+  }
   // === SUB-MODULE INIT ===
 
   initGestureListeners(els, mobileQuery, stampEl, recentLogsRoot, updateControls, _getCurrentEntry);

@@ -27,6 +27,7 @@ const state = {
   allLogsLoadingPromise: null,
 
   currentEntryId: '',
+  fromSearch: false,
 };
 
 // === READ ===
@@ -39,6 +40,8 @@ export function getOrderedIds() { return state.orderedIds; }
 
 export function getCurrentEntryId() { return state.currentEntryId; }
 export function setCurrentEntryId(id) { state.currentEntryId = id; }
+export function isFromSearch() { return state.fromSearch; }
+export function setFromSearch(v) { state.fromSearch = Boolean(v); }
 
 export function maxLoadedPage() {
   return state.loadedPages.size ? Math.max(...state.loadedPages) : 0;
@@ -50,7 +53,7 @@ export function minLoadedPage() {
 
 export function resolveCurrentIndex(stampEl) {
   const bodyId = utils.normalizeId(document.body?.dataset?.logLevel);
-  const stampMatch = (stampEl?.textContent || '').match(/\bLOG\b\s+(\d+)/i);
+  const stampMatch = (stampEl?.textContent || '').match(/(?:\bLOG\b\s+)?(\d+)/i);
   const stampId = utils.normalizeId(stampMatch ? stampMatch[1] : '');
   const currentId = bodyId || stampId;
   if (!currentId) return state.orderedIds.length - 1;

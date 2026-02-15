@@ -16,6 +16,7 @@ import { initDiagnostics } from './modules/diagnostics.js';
 import { initFeed }        from './modules/feed.js';
 import { initGlitch }      from './modules/glitch.js';
 import { initMobileLogs }  from './modules/mobile-logs/index.js';
+import "./modules/next-log-label.js";
 
 // === BOOT ===
 // Run synchronously before DOMContentLoaded where possible,

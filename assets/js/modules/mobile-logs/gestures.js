@@ -3,13 +3,22 @@
 // tap left/right half for prev/next, tap title for disruption list.
 
 import { GESTURE_CONFIG } from './config.js';
-import { renderDisruptionList, renderEntry } from './renderer.js';
+import {
+  renderDisruptionList,
+  renderEntry,
+  getCurrentEntry,
+  disruptionKey,
+  setLogStamp,
+} from './renderer.js';
 import {
   isLoaded,
   ensureLoaded,
+  getLogs,
   getOrderedIds,
   getLogsById,
   resolveCurrentIndex,
+  setCurrentEntryId,
+  setFromSearch,
   loadPage,
   maxLoadedPage,
   minLoadedPage,
@@ -44,6 +53,48 @@ export async function stepBy(
   recentLogsRoot,
   updateControls,
 ) {
+  if (els?.textEl?.dataset?.viewMode === 'disruption-list') {
+    const currentEntry = getCurrentEntry(stampEl);
+    const currentKey = disruptionKey(currentEntry);
+    if (!currentKey) return;
+
+    const newestByKey = new Map();
+    getLogs().forEach((entry) => {
+      const key = disruptionKey(entry);
+      if (!key) return;
+      const idNum = Number(String(entry?.id || '').replace(/\D/g, ''));
+      const prev = newestByKey.get(key);
+      if (!prev || idNum > prev.idNum) {
+        newestByKey.set(key, { idNum, entry });
+      }
+    });
+
+    const disruptionOrder = Array.from(newestByKey.entries())
+      .sort((a, b) => a[1].idNum - b[1].idNum)
+      .map(([key]) => key);
+
+    const currentDisruptionIndex = disruptionOrder.indexOf(currentKey);
+    if (currentDisruptionIndex < 0) return;
+
+    const targetDisruptionIndex = currentDisruptionIndex + direction;
+    if (targetDisruptionIndex < 0 || targetDisruptionIndex >= disruptionOrder.length) return;
+
+    const targetKey = disruptionOrder[targetDisruptionIndex];
+    const target = newestByKey.get(targetKey);
+    if (!target?.entry) return;
+
+    const targetId = String(target.entry.id || '').replace(/\D/g, '');
+    if (targetId) {
+      setCurrentEntryId(targetId);
+      if (document.body) document.body.dataset.logLevel = targetId;
+    }
+    setLogStamp(stampEl, target.entry?.id || '----', target.entry?.date || '----');
+
+    renderDisruptionList(els, mobileQuery, target.entry, stampEl);
+    updateControls();
+    return;
+  }
+
   const state = getState();
   let currentIndex = resolveCurrentIndex(stampEl);
   if (currentIndex < 0) return;
@@ -72,6 +123,7 @@ export async function stepBy(
 
   if (nextIndex < 0 || nextIndex >= getOrderedIds().length) return;
   const nextId = getOrderedIds()[nextIndex];
+  setFromSearch(false);
   renderEntry(els, mobileQuery, getLogsById().get(nextId), stampEl, recentLogsRoot, updateControls);
 }
 
@@ -115,18 +167,20 @@ export function buildTouchHandlers(els, mobileQuery, stampEl, recentLogsRoot, up
     if (target?.closest?.('.mobile-active-log-title')) {
       vibrateTap(mobileQuery, 10);
       renderDisruptionList(els, mobileQuery, getCurrentEntry(), stampEl);
+      updateControls();
       return;
     }
 
-    // In non-entry modes — swipe/tap do nothing (let native scroll work)
+    // In scan mode — swipe/tap do nothing (let native scroll work)
     const viewMode = textEl.dataset.viewMode;
-    if (viewMode === 'disruption-list' || viewMode === 'scan') return;
+    if (viewMode === 'scan') return;
 
     // Tap (small movement, short time) → navigate by panel half
     if (
       elapsed <= GESTURE_CONFIG.TAP_MAX_MS &&
       Math.abs(deltaX) <= GESTURE_CONFIG.TAP_MAX_MOVE &&
       Math.abs(deltaY) <= GESTURE_CONFIG.TAP_MAX_MOVE &&
+      viewMode !== 'disruption-list' &&
       !isInteractiveTarget(target)
     ) {
       const selection = window.getSelection ? window.getSelection() : null;

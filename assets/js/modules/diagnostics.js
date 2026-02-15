@@ -67,13 +67,13 @@ export function initDiagnostics() {
   function densityLabel(v) {
     if (v < 0.24) return 'LOW';
     if (v < 0.62) return 'STABLE';
-    return 'ELEVATED';
+    return 'HIGH';
   }
 
   function anomalyLabel(v) {
     if (v < 0.04) return 'LOW';
     if (v < 0.1) return 'RISING';
-    return 'ELEVATED';
+    return 'HIGH';
   }
 
   function coherenceTag(v) {
@@ -132,7 +132,7 @@ export function initDiagnostics() {
     panel.innerHTML = [
       `<span class="diag-line">TEMPORAL DRIFT: ${fmtDrift(temporalDrift)}</span>`,
       `<span class="diag-line">EVENT DENSITY: ${densityLabel(density)}</span>`,
-      `<span class="diag-line">SIGNAL COHERENCE: ${coherence.toFixed(2)} [${coherenceTag(coherence)}]</span>`,
+      `<span class="diag-line">SIGNAL COHERENCE: ${coherence.toFixed(2)}</span>`,
       `<span class="diag-line">ANOMALY PROBABILITY: ${anomalyLabel(anomaly)}</span>`,
       `<span class="diag-line">SYSTEM PHASE: <span class="diag-phase-value ${phaseClass}">${phase}</span></span>`,
       `<span class="diag-line">LAST TRANSIENT: ${lastSemantic}</span>`,

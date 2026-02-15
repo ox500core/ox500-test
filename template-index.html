@@ -1,5 +1,4 @@
-```html
-<!doctype html>
+﻿<!doctype html>
 <html lang="{{LANG}}">
 <head>
   <meta charset="UTF-8" />
@@ -46,13 +45,13 @@
       <div class="grid grid-sidebars-wide">
         <div class="topbar" aria-label="system bar">
           <div class="left">
-            <span class="pill" id="topbarNodePill">NODE: OX500_CORE</span>
-            <span class="pill log-pill" id="topbarLogStamp"><b>LOG</b> {{LATEST_LOG_ID}} {{LATEST_LOG_DATE}}</span>
+            <span class="pill" id="topbarNodePill">NODE: <b>OX500_CORE</b></span>
+            <span class="pill log-pill" id="topbarLogStamp" hidden>{{LATEST_LOG_ID}} {{LATEST_LOG_DATE}}</span>
             <span class="pill optional deep">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
           </div>
           <div class="right">
             <span class="pill optional deep">SYS <b id="sysVer">{{SYS_VER}}</b></span>
-            <span class="pill optional deep">{{SENSOR_LABEL}} <span class="hot">{{SENSOR_CODE}}</span> INIT</span>
+            <span class="pill optional deep" id="topbarSensorPill">{{SENSOR_LABEL}} <span class="hot">{{SENSOR_CODE}}</span> INIT</span>
             <span class="pill time-pill">TIME <b id="clock">--:--:--</b></span>
           </div>
         </div>
@@ -62,7 +61,7 @@
             <div class="hd"><span class="tag">RECENT_LOGS</span><span>LIST</span></div>
             <div class="bd" id="leftBlock2">
               {{RECENT_LOGS}}
-              <span class="log-line recent-log-next">NEXT LOG IN: <b id="nextLogCountdown">04:12:33</b></span>
+              <span class="log-line naked recent-log-next">NEXT LOG IN: <b id="nextLogCountdown" data-next-log="{{NEXT_LOG_UTC}}">...</b></span>
             </div>
           </section>
           <section class="panel" id="disruptionNodesPanel">
@@ -96,8 +95,9 @@
             </div>
             <div class="bd scroll log-text">{{LATEST_LOG_TEXT}}</div>
             <div class="mobile-log-nav" aria-label="mobile log navigation">
-              <button type="button" class="mobile-log-nav-btn prev" id="mobilePrevLogBtn" aria-label="Previous log">‹</button>
-              <button type="button" class="mobile-log-nav-btn next" id="mobileNextLogBtn" aria-label="Next log">›</button>
+              <button type="button" class="mobile-log-nav-btn back" id="backFromSearchBtn" aria-label="Back to search results" hidden>&#8617; BACK</button>
+              <button type="button" class="mobile-log-nav-btn prev" id="mobilePrevLogBtn" aria-label="Previous log">&#9664; PREV</button>
+              <button type="button" class="mobile-log-nav-btn next" id="mobileNextLogBtn" aria-label="Next log">NEXT &#9654;</button>
             </div>
           </section>
 
@@ -108,13 +108,6 @@
               <div class="line">STATUS_CONDITIONAL / <span class="val">SYSTEM_PARTIAL</span></div>
             </div>
 
-            <div class="controls" aria-label="navigation">
-              <a class="btn bracket" href="{{CANONICAL}}" data-tab="core">CORE_LAYOUT</a>
-              <a class="btn bracket" href="{{CANONICAL}}#disruptionNodesPanel" data-tab="disruption">DISRUPTION</a>
-              <a class="btn bracket" href="{{CANONICAL}}#activeViewPanel" data-tab="log">LOG_STREAM</a>
-              <a class="btn bracket" href="{{CANONICAL}}#leftBlock3" data-tab="series">SERIES</a>
-              <a class="btn bracket" href="{{SITEMAP_URL}}" data-tab="map">SITEMAP</a>
-            </div>
           </section>
         </div>
 
@@ -130,11 +123,11 @@ SECURITY: DISABLED</div>
 
           <section class="panel">
             <div class="hd"><span class="tag">INDEX</span><span>MAP</span></div>
-            <div class="bd mono" id="rightBlock2">CORE_LAYOUT  : ONLINE
-DISRUPTION   : LIVE_FEED
-LOGS         : PARTIAL
-SITEMAP      : ONLINE
-NODE_AUDIO   : ONLINE
+            <div class="bd mono" id="rightBlock2">CORE_LAYOUT  : <a href="{{CANONICAL}}" data-tab="core">CORE_LAYOUT</a>
+DISRUPTION   : <a href="{{CANONICAL}}#disruptionNodesPanel" data-tab="disruption">DISRUPTION</a>
+LOG_STREAM   : <a href="{{CANONICAL}}#activeViewPanel" data-tab="log">LOG_STREAM</a>
+SERIES       : <a href="{{CANONICAL}}#leftBlock3" data-tab="series">SERIES</a>
+SITEMAP      : <a href="{{SITEMAP_URL}}" data-tab="map">SITEMAP</a>
 
 EXTERNAL_NODES
 TRANSMISSIONS : <a href="{{YOUTUBE}}">YOUTUBE</a>
@@ -146,16 +139,16 @@ SOURCE_REPO : <a href="{{GITHUB}}">GITHUB</a></div>
 
         <div class="bottombar" aria-label="bottom bar">
           <div class="left" id="footerLeft">
-            UNAUTHORIZED USER_OVERRIDE DETECTED
+            <span class="footer-left-main">UNAUTHORIZED USER_OVERRIDE DETECTED</span>
             <br />
-            CANONICAL: {{CANONICAL}}
+            <span class="footer-left-canonical">CANONICAL: {{CANONICAL}}</span>
           </div>
           <div class="right" id="footerRight">
-            ACTIVITY_COMMS:
+            <span class="footer-right-activity">ACTIVITY_COMMS:</span>
             <br />
-            INDEX STATE <b>ONLINE</b>
+            <span class="footer-right-index">INDEX STATE <b>ONLINE</b></span>
             <br />
-            CORE ACTIVE SINCE <b id="system-uptime"></b>
+            <span class="footer-right-core">CORE ACTIVE SINCE <b id="system-uptime"></b></span>
           </div>
         </div>
 
@@ -227,3 +220,5 @@ SOURCE_REPO : <a href="{{GITHUB}}">GITHUB</a></div>
   <script src="/assets/js/bundle.js?v={{ASSET_VERSION}}" defer></script>
 </body>
 </html>
+
+

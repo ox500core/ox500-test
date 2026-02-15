@@ -297,7 +297,7 @@ def make_disruption_node_link(href: str, name: str, count: int, extra_class: str
     cls = "log-line" + (f" {extra_class.strip()}" if extra_class.strip() else "")
     return (
         f'<a class="{esc(cls)}" href="{esc(href)}">'
-        f'<span class="log-id">DISRUPTION //</span>'
+        f'<span class="log-id">//</span>'
         f'<span class="log-tag"><span class="node-name">{esc(name)}</span> '
         f'<span class="node-count">[{count}]</span> <span class="node-suffix">NODE</span></span>'
         f"</a>"
@@ -506,6 +506,39 @@ def normalize_date(date_str: str) -> str:
 def ym_from_date(date_str: str):
     d = parse_iso_date_strict(date_str, "ym_from_date")
     return f"{d.year:04d}", f"{d.month:02d}"
+
+def compute_next_log_utc(logs_sorted: list) -> str:
+    now_utc = datetime.now(timezone.utc)
+    nearest_future_utc = None
+    nearest_future_raw = None
+
+    for log in logs_sorted:
+        raw_date = str(log.get("date", "")).strip()
+        if not raw_date:
+            continue
+        if raw_date.endswith("Z"):
+            raw_date = raw_date[:-1] + "+00:00"
+        try:
+            parsed = datetime.fromisoformat(raw_date)
+        except Exception:
+            continue
+
+        if parsed.tzinfo is None:
+            target_utc = parsed.replace(tzinfo=timezone.utc)
+        else:
+            target_utc = parsed.astimezone(timezone.utc)
+
+        if target_utc <= now_utc:
+            continue
+
+        if nearest_future_utc is None or target_utc < nearest_future_utc:
+            nearest_future_utc = target_utc
+            nearest_future_raw = raw_date
+
+    if nearest_future_utc is None:
+        return "UNKNOWN"
+    return nearest_future_raw
+
 
 
 # =========================================================
@@ -1027,7 +1060,7 @@ def compose_home_view_models(
         up = url(rel(log))
         raw_title = str(log.get("title", ""))
         title = re.sub(r"^LOG\s+\d+\s*//\s*", "", raw_title, flags=re.IGNORECASE).strip()
-        recent_logs.append(make_log_line_link(up, f'LOG {log["id"]} //', title or raw_title, extra_class="naked"))
+        recent_logs.append(make_log_line_link(up, "//", title or raw_title, extra_class="naked"))
 
     for idx, d_slug in enumerate(disruption_order[:HOME_DISRUPTION_LIMIT]):
         d = disruptions[d_slug]
@@ -1200,7 +1233,7 @@ def stage_export_json_data(logs_sorted: list, disruptions_nav_payload: list, rel
     )
 
 
-def stage_render_homepage(t_index: str, ctx: SiteContext, home_vm: dict) -> None:
+def stage_render_homepage(t_index: str, ctx: SiteContext, home_vm: dict, next_log_utc: str) -> None:
     sensor_label = "SENSOR DRIFT VECTOR"
     sensor_code = derive_sensor_code(ctx.asset_version)
 
@@ -1232,6 +1265,7 @@ def stage_render_homepage(t_index: str, ctx: SiteContext, home_vm: dict) -> None
             "LATEST_LOG_PREV_URL": home_vm["latest_log_prev_url"],
             "LATEST_LOG_PREV_ATTRS": home_vm["latest_log_prev_attrs"],
             "PREVIOUS_LOG_TEXT_PLAIN": esc(home_vm["previous_log_text_plain"]),
+            "NEXT_LOG_UTC": next_log_utc,
             "ASSET_VERSION": ctx.asset_version,
         },
         template_name="template-index.html",
@@ -1247,6 +1281,7 @@ def stage_build_home_and_exports(
     disruption_order: list,
     t_index: str,
     ctx: SiteContext,
+    next_log_utc: str,
     rel,
     url,
     disruption_rel,
@@ -1266,7 +1301,12 @@ def stage_build_home_and_exports(
         rel=rel,
         url=url,
     )
-    stage_render_homepage(t_index=t_index, ctx=ctx, home_vm=home_vm)
+    stage_render_homepage(
+        t_index=t_index,
+        ctx=ctx,
+        home_vm=home_vm,
+        next_log_utc=next_log_utc,
+    )
 
 
 def stage_write_robots_and_sitemap(base_url: str, logs_sorted: list, sitemap_entries: list) -> None:
@@ -1317,6 +1357,9 @@ def build():
     # ===== NORMALIZE SLUGS =====
     for log in logs:
         log["slug"] = slugify(log.get("slug") or log.get("title", ""))
+
+    logs_sorted_all = sorted(logs, key=lambda x: x["_id_int"], reverse=True)
+    next_log_utc = compute_next_log_utc(logs_sorted_all)
 
     # ===== FILTER OUT FUTURE-DATED LOGS (do not generate/publish yet) =====
     asset_version = compute_asset_version()
@@ -1377,6 +1420,7 @@ def build():
         disruption_order=disruption_order,
         t_index=t_index,
         ctx=ctx,
+        next_log_utc=next_log_utc,
         rel=rel,
         url=url,
         disruption_rel=disruption_rel,

@@ -3,7 +3,7 @@
 // renders results, and handles deep-text-search toggle.
 
 import { utils } from '../../core/utils.js';
-import { getLogs, ensureAllLogsLoaded, isLoaded } from './store.js';
+import { getLogs, ensureAllLogsLoaded, isLoaded, setFromSearch } from './store.js';
 import {
   deriveMobileLogEntryTitle,
   renderDisruptionList,
@@ -121,7 +121,9 @@ export function renderScanResults(els, q, options) {
 export async function openScan(els, mobileQuery) {
   await ensureAllLogsLoaded();
   if (!isLoaded()) return;
+  setFromSearch(true);
   setViewMode(els, 'scan');
+  if (els.backFromSearchBtn) els.backFromSearchBtn.hidden = true;
   const { scanInput } = els;
   if (scanInput) {
     renderScanResults(els, scanInput.value);
@@ -134,6 +136,7 @@ export async function openScan(els, mobileQuery) {
 export function closeScan(els, mobileQuery, stampEl, recentLogsRoot, updateControls, lastNonScanMode, getCurrentEntry) {
   const { textEl } = els;
   if (!textEl || textEl.dataset.viewMode !== 'scan') return;
+  setFromSearch(false);
 
   const entry = getCurrentEntry();
   if (lastNonScanMode === 'disruption-list' && entry) {
@@ -201,6 +204,7 @@ export function initScannerListeners(els, mobileQuery, stampEl, recentLogsRoot, 
       const entry = els.logsById.get(logId);
       if (!entry) return;
       els.setCurrentEntryId(logId);
+      setFromSearch(true);
       renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, updateControls);
     });
   }

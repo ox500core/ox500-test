@@ -30,9 +30,12 @@ function _scheduleBootLayer() {
 }
 
 function _setNextLogCountdown() {
-  window.OX500_NEXT_LOG_STATIC = '04:12:33';
   const el = document.getElementById('nextLogCountdown');
-  if (el) el.textContent = window.OX500_NEXT_LOG_STATIC;
+  if (!el) return;
+  const current = String(el.textContent || '').trim();
+  if (current) return;
+  window.OX500_NEXT_LOG_STATIC = 'UNKNOWN';
+  el.textContent = window.OX500_NEXT_LOG_STATIC;
 }
 
 function _updateSysVersionPill() {
