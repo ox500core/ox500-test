@@ -16,12 +16,13 @@ const state = {
 
   totalPages: 0,
   loadedPages: new Set(),
-  loadingPages: new Set(),
+  loadingPagePromises: new Map(),
   pagePayloads: new Map(),
   logsPagesMetaCache: null,
 
   loaded: false,
   loading: false,
+  loadingPromise: null,
   allLogsLoaded: false,
   allLogsLoadingPromise: null,
 
@@ -49,8 +50,8 @@ export function minLoadedPage() {
 
 export function resolveCurrentIndex(stampEl) {
   const bodyId = utils.normalizeId(document.body?.dataset?.logLevel);
-  const stampMatch = (stampEl?.textContent || '').match(/\d{5}/);
-  const stampId = utils.normalizeId(stampMatch ? stampMatch[0] : '');
+  const stampMatch = (stampEl?.textContent || '').match(/\bLOG\b\s+(\d+)/i);
+  const stampId = utils.normalizeId(stampMatch ? stampMatch[1] : '');
   const currentId = bodyId || stampId;
   if (!currentId) return state.orderedIds.length - 1;
   const idx = state.orderedIds.indexOf(currentId);
@@ -84,26 +85,40 @@ function rebuildFromLoadedPages() {
 export async function loadPage(pageNum) {
   if (!pageNum || pageNum < 1) return false;
   if (state.totalPages && pageNum > state.totalPages) return false;
-  if (state.loadedPages.has(pageNum) || state.loadingPages.has(pageNum)) return false;
-
-  state.loadingPages.add(pageNum);
-  try {
-    const page = await fetchLogsPage(pageNum);
-    if (!Array.isArray(page) || !page.length) return false;
-    state.pagePayloads.set(pageNum, page);
-    state.loadedPages.add(pageNum);
-    rebuildFromLoadedPages();
-    bus.emit('logs:pageLoaded', { page: pageNum });
-    return true;
-  } finally {
-    state.loadingPages.delete(pageNum);
+  if (state.loadedPages.has(pageNum)) return true;
+  if (state.loadingPagePromises.has(pageNum)) {
+    return await state.loadingPagePromises.get(pageNum);
   }
+
+  const promise = (async () => {
+    try {
+      const page = await fetchLogsPage(pageNum);
+      if (!Array.isArray(page) || !page.length) return false;
+      state.pagePayloads.set(pageNum, page);
+      state.loadedPages.add(pageNum);
+      rebuildFromLoadedPages();
+      bus.emit('logs:pageLoaded', { page: pageNum });
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      state.loadingPagePromises.delete(pageNum);
+    }
+  })();
+
+  state.loadingPagePromises.set(pageNum, promise);
+  return await promise;
 }
 
 export async function ensureLoaded() {
-  if (state.loaded || state.loading) return;
+  if (state.loaded) return;
+  if (state.loadingPromise) {
+    await state.loadingPromise;
+    return;
+  }
+
   state.loading = true;
-  try {
+  state.loadingPromise = (async () => {
     let meta = state.logsPagesMetaCache;
     if (!meta) {
       meta = await fetchLogsPagesMeta();
@@ -114,9 +129,12 @@ export async function ensureLoaded() {
       await loadPage(1);
       state.loaded = state.orderedIds.length > 0;
     }
-  } finally {
+  })().finally(() => {
     state.loading = false;
-  }
+    state.loadingPromise = null;
+  });
+
+  await state.loadingPromise;
 }
 
 export async function ensureAllLogsLoaded() {

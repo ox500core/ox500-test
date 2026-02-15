@@ -10,14 +10,11 @@ import {
   resolveCurrentIndex,
   getOrderedIds,
   getLogsById,
-  getCurrentEntryId,
   setCurrentEntryId,
 } from './store.js';
 import {
   renderEntry,
   renderDisruptionList,
-  setViewMode,
-  resetScanUi,
   disruptionSlugFromHref,
   logIdFromHref,
   pickEntryForDisruptionSlug,
@@ -31,6 +28,7 @@ import { MOBILE_BREAKPOINT } from './config.js';
 
 export function initMobileLogs() {
   const staticHomeHero = document.body?.dataset?.layout === 'home';
+  // Intencjonalnie tylko layout 'home' - inne templatki nie maja wymaganych elementow DOM.
   if (!staticHomeHero || !window.matchMedia) return;
 
   const mobileQuery = window.matchMedia(MOBILE_BREAKPOINT);
@@ -68,6 +66,15 @@ export function initMobileLogs() {
   let lastNonScanMode = 'entry';
   const getLastNonScanMode = () => lastNonScanMode;
 
+  const modeObserver = new MutationObserver(() => {
+    const mode = textEl.dataset.viewMode;
+    if (mode && mode !== 'scan') lastNonScanMode = mode;
+  });
+  modeObserver.observe(textEl, {
+    attributes: true,
+    attributeFilter: ['data-view-mode'],
+  });
+
   // === CONTROLS ===
 
   function updateControls() {
@@ -94,13 +101,6 @@ export function initMobileLogs() {
   function _getCurrentEntry() {
     return getCurrentEntry(stampEl);
   }
-
-  // === VIEW MODE WRAPPER (tracks lastNonScanMode) ===
-
-  const origSetViewMode = (mode) => {
-    if (mode !== 'scan') lastNonScanMode = mode;
-    setViewMode(els, mode);
-  };
 
   // === CLICK HANDLERS ===
 

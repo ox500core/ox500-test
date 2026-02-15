@@ -11,6 +11,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 import html
 
+try:
+    import minify_html as _minify_html
+    _MINIFY_HTML_AVAILABLE = True
+except ImportError:
+    _MINIFY_HTML_AVAILABLE = False
+
 # =========================================================
 # CONFIG / CONSTANTS
 # =========================================================
@@ -24,7 +30,7 @@ DIST = ROOT / "dist"
 JS_ENTRY        = ROOT / "assets" / "js" / "main.js"
 JS_BUNDLE_REL   = Path("assets") / "js" / "bundle.js"
 JS_BUNDLE_DIST  = DIST / JS_BUNDLE_REL
-JS_TARGET       = "es2018"          # safe for all modern browsers
+JS_TARGET       = "es2020"          # safe for all modern browsers
 JS_MINIFY       = True              # set False for easier debugging
 
 
@@ -226,14 +232,27 @@ def read_text(path: Path) -> str:
 
 def write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+
+    if _MINIFY_HTML_AVAILABLE and path.suffix == ".html":
+        try:
+            content = _minify_html.minify(
+                content,
+                minify_js=False,
+                minify_css=False,
+                keep_closing_tags=True,
+                keep_html_and_head_opening_tags=True,
+            )
+        except Exception:
+            pass
+
     if (not CLEAN_DIST_ON_BUILD) and path.exists():
         try:
             with open(path, "r", encoding="utf-8") as f:
                 if f.read() == content:
                     return
         except (OSError, UnicodeDecodeError):
-            # Fallback to overwrite on any read/decode issue.
             pass
+
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
 
@@ -590,6 +609,38 @@ def _find_esbuild() -> str | None:
         return str(local)
 
     return None
+
+
+def stage_minify_css() -> None:
+    css_src = ASSETS_SRC / "css" / "style.css"
+    css_dst = ASSETS_CSS_DIST
+
+    if not css_src.exists():
+        print(f"SKIP CSS minify — not found: {css_src}")
+        return
+
+    esbuild_exe = _find_esbuild()
+    if not esbuild_exe:
+        print("SKIP CSS minify — esbuild not found")
+        return
+
+    # stage_prepare_output() already copied style.css — overwrite with minified version
+    css_dst.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        result = subprocess.run(
+            [esbuild_exe, str(css_src), "--minify", f"--outfile={css_dst}"],
+            check=True,
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+            shell=(sys.platform == "win32"),
+        )
+        size_kb = css_dst.stat().st_size / 1024
+        print(f"CSS minify OK — {ASSETS_CSS_REL.as_posix()} ({size_kb:.1f} kB)")
+    except subprocess.CalledProcessError as exc:
+        print(f"ERROR: CSS minify failed:\n{exc.stderr}", file=sys.stderr)
+        sys.exit(1)
 
 
 def stage_bundle_js() -> None:
@@ -1257,6 +1308,7 @@ def stage_write_robots_and_sitemap(base_url: str, logs_sorted: list, sitemap_ent
 
 def build():
     stage_prepare_output()
+    stage_minify_css()
     stage_bundle_js()
     source = stage_load_and_validate_source()
     site = source["site"]

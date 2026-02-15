@@ -1,4 +1,4 @@
-// === MOBILE LOGS — SCANNER ===
+﻿// === MOBILE LOGS â€” SCANNER ===
 // Full-text search engine. Manages scan state, debounces input,
 // renders results, and handles deep-text-search toggle.
 
@@ -6,6 +6,7 @@ import { utils } from '../../core/utils.js';
 import { getLogs, ensureAllLogsLoaded, isLoaded } from './store.js';
 import {
   deriveMobileLogEntryTitle,
+  renderDisruptionList,
   setViewMode,
   resetScanUi,
   renderEntry,
@@ -13,7 +14,7 @@ import {
 import { SCAN_CONFIG } from './config.js';
 
 // === SCAN STATE ===
-// Isolated to this module — scanner owns its own mutable state.
+// Isolated to this module â€” scanner owns its own mutable state.
 
 let deepTextSearchEnabled = SCAN_CONFIG.DEEP_SEARCH_ENABLED;
 let scanResultsLimit = SCAN_CONFIG.MAX_RESULTS;
@@ -136,11 +137,8 @@ export function closeScan(els, mobileQuery, stampEl, recentLogsRoot, updateContr
 
   const entry = getCurrentEntry();
   if (lastNonScanMode === 'disruption-list' && entry) {
-    // Import lazily to avoid circular — renderer exports renderDisruptionList
-    import('./renderer.js').then(({ renderDisruptionList, resetScanUi: reset }) => {
-      renderDisruptionList(els, mobileQuery, entry, stampEl);
-      reset(els);
-    });
+    renderDisruptionList(els, mobileQuery, entry, stampEl);
+    resetScanUi(els);
     return;
   }
   if (entry) {
@@ -155,7 +153,7 @@ export function closeScan(els, mobileQuery, stampEl, recentLogsRoot, updateContr
 // === EVENT WIRING ===
 
 export function initScannerListeners(els, mobileQuery, stampEl, recentLogsRoot, updateControls, getLastNonScanMode, getCurrentEntry) {
-  const { scanBtn, scanInput, scanResults, textEl, logsById: _logsById } = els;
+  const { scanBtn, scanInput, scanResults, textEl } = els;
 
   if (scanBtn) {
     scanBtn.addEventListener('click', async () => {

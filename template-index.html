@@ -1,3 +1,4 @@
+```html
 <!doctype html>
 <html lang="{{LANG}}">
 <head>
@@ -6,9 +7,6 @@
   <meta name="robots" content="noindex, nofollow, noarchive" />
   <meta name="googlebot" content="noindex, nofollow, noarchive" />
   <meta name="theme-color" content="#050608" />
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
   <title>{{SITE_TITLE}} // STATION</title>
   <meta name="description" content="OX500 STATION &mdash; system interface. Archive access is conditional. The logs remain." />
 
@@ -112,10 +110,10 @@
 
             <div class="controls" aria-label="navigation">
               <a class="btn bracket" href="{{CANONICAL}}" data-tab="core">CORE_LAYOUT</a>
+              <a class="btn bracket" href="{{CANONICAL}}#disruptionNodesPanel" data-tab="disruption">DISRUPTION</a>
+              <a class="btn bracket" href="{{CANONICAL}}#activeViewPanel" data-tab="log">LOG_STREAM</a>
+              <a class="btn bracket" href="{{CANONICAL}}#leftBlock3" data-tab="series">SERIES</a>
               <a class="btn bracket" href="{{SITEMAP_URL}}" data-tab="map">SITEMAP</a>
-              <a class="btn bracket" href="{{GITHUB}}" data-tab="src">SOURCE</a>
-              <a class="btn bracket" href="{{YOUTUBE}}" data-tab="yt">TRANSMIT</a>
-              <a class="btn bracket" href="{{BANDCAMP}}" data-tab="bc">NODE_AUDIO</a>
             </div>
           </section>
         </div>
@@ -136,7 +134,12 @@ SECURITY: DISABLED</div>
 DISRUPTION   : LIVE_FEED
 LOGS         : PARTIAL
 SITEMAP      : ONLINE
-NODE_AUDIO   : ONLINE</div>
+NODE_AUDIO   : ONLINE
+
+EXTERNAL_NODES
+TRANSMISSIONS : <a href="{{YOUTUBE}}">YOUTUBE</a>
+AUDIO_ARCHIVE : <a href="{{BANDCAMP}}">BANDCAMP</a>
+SOURCE_REPO : <a href="{{GITHUB}}">GITHUB</a></div>
           </section>
 
         </div>
