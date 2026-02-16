@@ -646,7 +646,10 @@ def stage_minify_css() -> None:
 
     try:
         result = subprocess.run(
-            ["npx", "esbuild", str(css_src), "--minify", f"--outfile={css_dst}"],
+            ["node", "node_modules/esbuild/bin/esbuild",
+             str(css_src),
+             "--minify",
+             f"--outfile={css_dst}"],
             check=True,
             capture_output=True,
             text=True,
