@@ -672,8 +672,8 @@ def stage_bundle_js() -> None:
     JS_BUNDLE_DIST.parent.mkdir(parents=True, exist_ok=True)
 
     cmd = [
-        "npx",
-        "esbuild",
+        "node",
+        "node_modules/esbuild/bin/esbuild",
         str(JS_ENTRY),
         "--bundle",
         f"--outfile={JS_BUNDLE_DIST}",
@@ -681,6 +681,27 @@ def stage_bundle_js() -> None:
         "--format=iife",
         "--platform=browser",
     ]
+
+    if JS_MINIFY:
+        cmd.append("--minify")
+
+    try:
+        result = subprocess.run(
+            cmd,
+            check=True,
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+            shell=(sys.platform == "win32"),
+        )
+        size_kb = JS_BUNDLE_DIST.stat().st_size / 1024
+        print(f"JS bundle OK — {JS_BUNDLE_REL.as_posix()} ({size_kb:.1f} kB)")
+        if result.stderr:
+            print(result.stderr.strip())
+    except subprocess.CalledProcessError as exc:
+        print(f"ERROR: esbuild failed:\n{exc.stderr}", file=sys.stderr)
+        sys.exit(1)
+
 
     if JS_MINIFY:
         cmd.append("--minify")
