@@ -540,6 +540,36 @@ def compute_next_log_utc(logs_sorted: list) -> str:
     return nearest_future_raw
 
 
+def extract_disruption_identity(log: dict) -> tuple[str, str]:
+    """
+    Returns normalized disruption title and slug from a log entry.
+    Empty strings are returned when disruption/series is missing.
+    """
+    raw_disruption = str(log.get("series") or log.get("disruption") or "").strip()
+    if not raw_disruption:
+        return "", ""
+    return disruption_display_name(raw_disruption), disruption_slug(raw_disruption)
+
+
+def write_json(path: Path, payload) -> None:
+    write_text(path, json.dumps(payload, ensure_ascii=False))
+
+
+def iter_page_chunks(items: list, page_size: int):
+    if page_size <= 0:
+        raise ValueError("page_size must be positive")
+    for start in range(0, len(items), page_size):
+        page_num = (start // page_size) + 1
+        yield page_num, items[start:start + page_size]
+
+
+def write_paginated_json_files(items: list, page_size: int, file_prefix: str) -> int:
+    total_pages = (len(items) + page_size - 1) // page_size if items else 0
+    for page_num, chunk in iter_page_chunks(items, page_size):
+        write_json(DIST / "data" / f"{file_prefix}-page-{page_num}.json", chunk)
+    return total_pages
+
+
 
 # =========================================================
 # DISRUPTION / SERIES CLEANUP
@@ -634,6 +664,21 @@ def _find_esbuild() -> str | None:
     return None
 
 
+def run_checked_process(cmd: list[str], *, error_label: str) -> subprocess.CompletedProcess:
+    try:
+        return subprocess.run(
+            cmd,
+            check=True,
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+            shell=(sys.platform == "win32"),
+        )
+    except subprocess.CalledProcessError as exc:
+        print(f"ERROR: {error_label}:\n{exc.stderr}", file=sys.stderr)
+        sys.exit(1)
+
+
 def stage_minify_css() -> None:
     css_src = ASSETS_SRC / "css" / "style.css"
     css_dst = ASSETS_CSS_DIST
@@ -644,23 +689,15 @@ def stage_minify_css() -> None:
 
     css_dst.parent.mkdir(parents=True, exist_ok=True)
 
-    try:
-        result = subprocess.run(
-            ["node", "node_modules/esbuild/bin/esbuild",
-             str(css_src),
-             "--minify",
-             f"--outfile={css_dst}"],
-            check=True,
-            capture_output=True,
-            text=True,
-            cwd=ROOT,
-            shell=(sys.platform == "win32"),
-        )
-        size_kb = css_dst.stat().st_size / 1024
-        print(f"CSS minify OK — {ASSETS_CSS_REL.as_posix()} ({size_kb:.1f} kB)")
-    except subprocess.CalledProcessError as exc:
-        print(f"ERROR: CSS minify failed:\n{exc.stderr}", file=sys.stderr)
-        sys.exit(1)
+    run_checked_process(
+        ["node", "node_modules/esbuild/bin/esbuild",
+         str(css_src),
+         "--minify",
+         f"--outfile={css_dst}"],
+        error_label="CSS minify failed",
+    )
+    size_kb = css_dst.stat().st_size / 1024
+    print(f"CSS minify OK — {ASSETS_CSS_REL.as_posix()} ({size_kb:.1f} kB)")
 
 
 def stage_bundle_js() -> None:
@@ -685,22 +722,11 @@ def stage_bundle_js() -> None:
     if JS_MINIFY:
         cmd.append("--minify")
 
-    try:
-        result = subprocess.run(
-            cmd,
-            check=True,
-            capture_output=True,
-            text=True,
-            cwd=ROOT,
-            shell=(sys.platform == "win32"),
-        )
-        size_kb = JS_BUNDLE_DIST.stat().st_size / 1024
-        print(f"JS bundle OK — {JS_BUNDLE_REL.as_posix()} ({size_kb:.1f} kB)")
-        if result.stderr:
-            print(result.stderr.strip())
-    except subprocess.CalledProcessError as exc:
-        print(f"ERROR: esbuild failed:\n{exc.stderr}", file=sys.stderr)
-        sys.exit(1)
+    result = run_checked_process(cmd, error_label="esbuild failed")
+    size_kb = JS_BUNDLE_DIST.stat().st_size / 1024
+    print(f"JS bundle OK — {JS_BUNDLE_REL.as_posix()} ({size_kb:.1f} kB)")
+    if result.stderr:
+        print(result.stderr.strip())
 
 
 def stage_prepare_output() -> None:
@@ -781,7 +807,7 @@ def stage_load_and_validate_source() -> dict:
     }
 
 
-def stage_prepare_templates_and_css():
+def stage_load_templates():
     t_log = read_text(ROOT / "template-log.html")
     t_index = read_text(ROOT / "template-index.html")
 
@@ -793,6 +819,11 @@ def stage_prepare_templates_and_css():
         t_node = read_text(t_series_path)
 
     return t_log, t_index, t_node
+
+
+def stage_prepare_templates_and_css():
+    # Backward-compatible wrapper for the previous stage name.
+    return stage_load_templates()
 
 
 # =========================================================
@@ -858,12 +889,11 @@ def stage_build_log_pages(
             )
         full_nav = '\n                  '.join(nav_parts)
 
-        raw_disruption = (log.get("series") or log.get("disruption") or "").strip()
+        disruption_name, disruption_slug_value = extract_disruption_identity(log)
         node_meta = ""
-        if raw_disruption:
-            d_path = url(disruption_rel(disruption_slug(raw_disruption)))
-            d_name = disruption_display_name(raw_disruption)
-            node_meta = f'NODE: <a href="{d_path}" rel="up">{esc(d_name)}</a> | '
+        if disruption_slug_value:
+            d_path = url(disruption_rel(disruption_slug_value))
+            node_meta = f'NODE: <a href="{d_path}" rel="up">{esc(disruption_name)}</a> | '
 
         ui_state = log.get("ui_state") if isinstance(log.get("ui_state"), dict) else {}
         log_mode = str(ui_state.get("mode") or "READ_ONLY")
@@ -1126,42 +1156,26 @@ def compose_home_view_models(
 
 def stage_export_json_data(logs_sorted: list, disruptions_nav_payload: list, rel, url) -> None:
     disruption_page_size = DISRUPTION_INDEX_PAGE_SIZE
-    disruption_total_pages = (
-        (len(disruptions_nav_payload) + disruption_page_size - 1) // disruption_page_size
-        if disruptions_nav_payload
-        else 0
+    disruption_total_pages = write_paginated_json_files(
+        items=disruptions_nav_payload,
+        page_size=disruption_page_size,
+        file_prefix="disruptions",
     )
-    for page_num in range(1, disruption_total_pages + 1):
-        start = (page_num - 1) * disruption_page_size
-        end = start + disruption_page_size
-        write_text(
-            DIST / "data" / f"disruptions-page-{page_num}.json",
-            json.dumps(disruptions_nav_payload[start:end], ensure_ascii=False),
-        )
-    write_text(
+    write_json(
         DIST / "data" / "disruptions-pages-meta.json",
-        json.dumps(
-            {
-                "page_size": disruption_page_size,
-                "total_pages": disruption_total_pages,
-                "total_items": len(disruptions_nav_payload),
-                "total_unique_disruptions": len(disruptions_nav_payload),
-            },
-            ensure_ascii=False,
-        ),
+        {
+            "page_size": disruption_page_size,
+            "total_pages": disruption_total_pages,
+            "total_items": len(disruptions_nav_payload),
+            "total_unique_disruptions": len(disruptions_nav_payload),
+        },
     )
 
     logs_page_size = LOG_INDEX_PAGE_SIZE
     logs_nav_payload = []
     for log in logs_sorted:
         rel_path = rel(log)
-        raw_disruption = str(log.get("series") or log.get("disruption") or "").strip()
-        if raw_disruption:
-            disruption_title_clean = disruption_display_name(raw_disruption)
-            disruption_slug_clean = disruption_slug(raw_disruption)
-        else:
-            disruption_title_clean = ""
-            disruption_slug_clean = ""
+        disruption_title_clean, disruption_slug_clean = extract_disruption_identity(log)
         logs_nav_payload.append(
             {
                 "id": str(log.get("id", "")),
@@ -1178,28 +1192,18 @@ def stage_export_json_data(logs_sorted: list, disruptions_nav_payload: list, rel
             }
         )
 
-    logs_total_pages = (
-        (len(logs_nav_payload) + logs_page_size - 1) // logs_page_size
-        if logs_nav_payload
-        else 0
+    logs_total_pages = write_paginated_json_files(
+        items=logs_nav_payload,
+        page_size=logs_page_size,
+        file_prefix="logs",
     )
-    for page_num in range(1, logs_total_pages + 1):
-        start = (page_num - 1) * logs_page_size
-        end = start + logs_page_size
-        write_text(
-            DIST / "data" / f"logs-page-{page_num}.json",
-            json.dumps(logs_nav_payload[start:end], ensure_ascii=False),
-        )
-    write_text(
+    write_json(
         DIST / "data" / "logs-pages-meta.json",
-        json.dumps(
-            {
-                "page_size": logs_page_size,
-                "total_pages": logs_total_pages,
-                "total_items": len(logs_nav_payload),
-            },
-            ensure_ascii=False,
-        ),
+        {
+            "page_size": logs_page_size,
+            "total_pages": logs_total_pages,
+            "total_items": len(logs_nav_payload),
+        },
     )
 
 
@@ -1340,7 +1344,7 @@ def build():
     logs_sorted = sorted(logs, key=lambda x: x["_id_int"], reverse=True)
     generated_log_pages = len(logs_sorted)
     available_count = f"{generated_log_pages:04d}"
-    t_log, t_index, t_node = stage_prepare_templates_and_css()
+    t_log, t_index, t_node = stage_load_templates()
 
     ctx = SiteContext(
         base_url=site["base_url"].rstrip("/"),
