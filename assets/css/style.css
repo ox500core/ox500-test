@@ -595,6 +595,15 @@ body::after{
   text-decoration:underline;
 }
 
+:where(body[data-layout="home"]) .mobile-index-nav{
+  display:none;
+}
+:where(body[data-layout="home"]) .mobile-output-node{
+  white-space:pre-wrap;
+  line-height:1.65;
+  letter-spacing:.1em;
+}
+
 #overlayLayer{
   position:absolute;
   inset:0;
@@ -1433,6 +1442,36 @@ a:focus-visible{
     outline:none;
   }
 
+  :where(body[data-layout="home"]) .mobile-index-nav{
+    display:flex;
+    flex-wrap:wrap;
+    gap:var(--space-4) var(--space-5);
+    align-items:center;
+    justify-content:center;
+    margin-top:var(--space-2);
+    margin-bottom:var(--space-2);
+    padding:0 var(--space-4);
+  }
+  :where(body[data-layout="home"]) .mobile-index-nav a{
+    display:inline-flex;
+    align-items:center;
+    color:rgba(var(--ink-rgb),.72);
+    text-decoration:none;
+    font:700 11px/1.2 var(--ox-font-mono);
+    letter-spacing:.14em;
+    text-transform:uppercase;
+  }
+  :where(body[data-layout="home"]) .mobile-index-nav a::before{content:"[ "; color:rgba(var(--ink-rgb),.45);}
+  :where(body[data-layout="home"]) .mobile-index-nav a::after{content:" ]"; color:rgba(var(--ink-rgb),.45);}
+  :where(body[data-layout="home"]) .mobile-index-nav a:hover{
+    color:rgba(var(--white-rgb),.90);
+    text-shadow:0 0 8px rgba(var(--cyan-rgb),.12);
+  }
+  :where(body[data-layout="home"]) .mobile-index-nav a:focus-visible{
+    outline:1px solid rgba(var(--ink-rgb),.22);
+    outline-offset:2px;
+  }
+
   /* FIX #1: scope padding reset tylko do HOME */
   :where(body[data-layout="home"]) .grid{padding-left:0;padding-right:0;}
 
@@ -1515,6 +1554,30 @@ a:focus-visible{
   :where(body[data-layout="home"]) #activeViewPanel .hd{padding:var(--space-6);}
 }
 
+@media (orientation:landscape) and (hover:none) and (pointer:coarse){
+  :where(body[data-layout="home"]) .mobile-index-nav{
+    display:flex;
+    flex-wrap:wrap;
+    gap:var(--space-4) var(--space-5);
+    align-items:center;
+    justify-content:center;
+    margin-top:var(--space-2);
+    margin-bottom:var(--space-2);
+    padding:0 var(--space-4);
+  }
+  :where(body[data-layout="home"]) .mobile-index-nav a{
+    display:inline-flex;
+    align-items:center;
+    color:rgba(var(--ink-rgb),.72);
+    text-decoration:none;
+    font:700 11px/1.2 var(--ox-font-mono);
+    letter-spacing:.14em;
+    text-transform:uppercase;
+  }
+  :where(body[data-layout="home"]) .mobile-index-nav a::before{content:"[ "; color:rgba(var(--ink-rgb),.45);}
+  :where(body[data-layout="home"]) .mobile-index-nav a::after{content:" ]"; color:rgba(var(--ink-rgb),.45);}
+}
+
 /* =========================================================
    ACCESSIBILITY â€“ prefers-reduced-motion
    Disables all transitions and animations for users who
@@ -1573,5 +1636,58 @@ a:focus-visible{
 }
 
 
+}
+
+/* iPad/tablet nav alignment: BACK + PREV left, NEXT right edge. */
+@media (min-width:700px) and (max-width:1400px) and (hover:none) and (pointer:coarse){
+  :where(body[data-layout="home"]) #activeViewPanel .mobile-log-nav{
+    width:100%;
+    justify-content:flex-start;
+    gap:var(--space-8);
+    padding-inline:max(var(--space-4), env(safe-area-inset-left)) max(var(--space-4), env(safe-area-inset-right));
+    box-sizing:border-box;
+  }
+
+  :where(body[data-layout="home"]) #activeViewPanel .mobile-log-nav-btn.back{
+    order:1;
+  }
+  :where(body[data-layout="home"]) #activeViewPanel .mobile-log-nav-btn.prev{
+    order:2;
+  }
+  :where(body[data-layout="home"]) #activeViewPanel .mobile-log-nav-btn.next{
+    order:3;
+    margin-left:auto;
+  }
+}
+
+/* iPad/tablet: reduce hero footprint so active view gets more height. */
+@media (min-width:700px) and (max-width:1400px) and (hover:none) and (pointer:coarse){
+  :where(body[data-layout="home"]) .center > .home-hero{
+    padding-top:var(--space-1);
+    padding-bottom:var(--space-1);
+  }
+  :where(body[data-layout="home"]) .center > .home-hero .status{
+    display:none;
+  }
+}
+
+/* iPad portrait: reduce bottom buffer under active view content. */
+@media (min-width:700px) and (max-width:980px) and (orientation:portrait) and (hover:none) and (pointer:coarse){
+  :where(body[data-layout="home"]) .center{
+    grid-template-rows:minmax(0, 1fr) auto;
+  }
+  :where(body[data-layout="home"]) #activeViewPanel .bd{
+    padding-bottom:calc(10px + env(safe-area-inset-bottom));
+  }
+}
+
+/* iPad landscape: remove desktop max-height reserve that shrinks active view. */
+@media (min-width:981px) and (max-width:1400px) and (orientation:landscape) and (hover:none) and (pointer:coarse){
+  :where(body[data-layout="home"]) .center{
+    grid-template-rows:minmax(0, 1fr) auto !important;
+  }
+  :where(body[data-layout="home"]) .center > .active-view-panel{
+    max-height:none !important;
+  }
 }
 

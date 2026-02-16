@@ -23,9 +23,7 @@
   <meta name="twitter:description" content="System interface. Archive access is conditional. The logs remain." />
   <meta name="twitter:image" content="{{OG_IMAGE}}" />
 
-<link rel="preload" href="/assets/css/style.css?v={{ASSET_VERSION}}" as="style">
-<link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}">
-
+  <link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}" />
   <script type="application/ld+json">{{DISRUPTION_SERIES_JSONLD}}</script>
 </head>
 <body data-log-level="{{LATEST_LOG_ID}}" data-core-start="{{SYSTEM_CORE_START_UTC}}" data-layout="home">
@@ -105,6 +103,12 @@
             </div>
           </section>
 
+          <nav class="mobile-index-nav" aria-label="mobile index menu">
+            <a href="{{CANONICAL}}" data-tab="core">CORE</a>
+            <a href="{{CANONICAL}}#disruptionNodesPanel" data-tab="disruption">DISRUPTION</a>
+            <a href="{{CANONICAL}}#activeViewPanel" data-tab="output">OUTPUT</a>
+          </nav>
+
           <section class="hero home-hero" id="hero">
             <h1 class="title" id="title">OX500 STATION</h1>
             <div class="status" id="status">
@@ -127,16 +131,13 @@ SECURITY: DISABLED</div>
 
           <section class="panel">
             <div class="hd"><span class="tag">INDEX</span><span>MAP</span></div>
-            <div class="bd mono" id="rightBlock2">CORE_LAYOUT  : <a href="{{CANONICAL}}" data-tab="core">CORE_LAYOUT</a>
-DISRUPTION   : <a href="{{CANONICAL}}#disruptionNodesPanel" data-tab="disruption">DISRUPTION</a>
-LOG_STREAM   : <a href="{{CANONICAL}}#activeViewPanel" data-tab="log">LOG_STREAM</a>
-SERIES       : <a href="{{CANONICAL}}#leftBlock3" data-tab="series">SERIES</a>
-SITEMAP      : <a href="{{SITEMAP_URL}}" data-tab="map">SITEMAP</a>
+            <div class="bd mono" id="rightBlock2">CORE        : <a href="{{CANONICAL}}" data-tab="core">CORE</a>
+DISRUPTION  : <a href="{{CANONICAL}}#disruptionNodesPanel" data-tab="disruption">DISRUPTION</a>
 
 EXTERNAL_NODES
 TRANSMISSIONS : <a href="{{YOUTUBE}}">YOUTUBE</a>
 AUDIO_ARCHIVE : <a href="{{BANDCAMP}}">BANDCAMP</a>
-SOURCE_REPO : <a href="{{GITHUB}}">GITHUB</a></div>
+SOURCE_REPO   : <a href="{{GITHUB}}">GITHUB</a></div>
           </section>
 
         </div>

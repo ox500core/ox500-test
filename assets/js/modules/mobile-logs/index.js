@@ -14,10 +14,14 @@ import {
   setCurrentEntryId,
   isFromSearch,
   setFromSearch,
+  isFromDisruption,
+  setFromDisruption,
+  maybePrefetchAroundListIndex,
 } from './store.js';
 import {
   renderEntry,
   renderDisruptionList,
+  setViewMode,
   disruptionKey,
   disruptionSlugFromHref,
   logIdFromHref,
@@ -51,6 +55,8 @@ export function initMobileLogs() {
   const scanInput = document.getElementById('scanInput');
   const scanResults = document.getElementById('scanResults');
   const scanBtn = document.getElementById('scanModeBtn');
+  const mobileIndexNav = document.querySelector('.mobile-index-nav');
+  const desktopIndexNav = document.getElementById('rightBlock2');
 
   if (!panel || !textEl || !stampEl) return;
 
@@ -85,8 +91,15 @@ export function initMobileLogs() {
   function updateControls() {
     if (!prevBtn || !nextBtn) return;
     if (backFromSearchBtn) {
-      const showBack = Boolean(isFromSearch() && textEl?.dataset?.viewMode === 'entry');
+      const inEntryMode = textEl?.dataset?.viewMode === 'entry';
+      const backToSearch = Boolean(isFromSearch() && inEntryMode);
+      const backToDisruption = Boolean(isFromDisruption() && inEntryMode);
+      const showBack = backToSearch || backToDisruption;
       backFromSearchBtn.hidden = !showBack;
+      if (showBack) {
+        backFromSearchBtn.textContent = '↩ BACK';
+        backFromSearchBtn.setAttribute('aria-label', backToSearch ? 'Back to search results' : 'Back to disruption list');
+      }
     }
     if (!isLoaded() || !getOrderedIds().length) {
       prevBtn.disabled = false;
@@ -123,11 +136,40 @@ export function initMobileLogs() {
       const canPrev = idx > 0;
       const canNext = idx >= 0 && idx < disruptionOrder.length - 1;
 
+      if (idx >= 0) {
+        void maybePrefetchAroundListIndex(idx, disruptionOrder.length, 10);
+      }
+
       prevBtn.disabled = !canPrev;
       nextBtn.disabled = !canNext;
       prevBtn.classList.toggle('disabled', !canPrev);
       nextBtn.classList.toggle('disabled', !canNext);
       return;
+    }
+
+    if (textEl?.dataset?.viewMode === 'entry' && isFromDisruption()) {
+      const currentEntry = getCurrentEntry(stampEl);
+      const currentKey = disruptionKey(currentEntry);
+      if (currentEntry && currentKey) {
+        const list = getLogs()
+          .filter((entry) => disruptionKey(entry) === currentKey)
+          .slice()
+          .sort((a, b) => Number(String(a?.id || '').replace(/\D/g, '')) - Number(String(b?.id || '').replace(/\D/g, '')));
+
+        const currentId = String(currentEntry?.id || '').replace(/\D/g, '');
+        const idx = list.findIndex((entry) => String(entry?.id || '').replace(/\D/g, '') === currentId);
+
+        if (idx >= 0) {
+          void maybePrefetchAroundListIndex(idx, list.length, 10);
+          const canPrev = idx > 0;
+          const canNext = idx < list.length - 1;
+          prevBtn.disabled = !canPrev;
+          nextBtn.disabled = !canNext;
+          prevBtn.classList.toggle('disabled', !canPrev);
+          nextBtn.classList.toggle('disabled', !canNext);
+          return;
+        }
+      }
     }
 
     const idx = resolveCurrentIndex(stampEl);
@@ -144,6 +186,33 @@ export function initMobileLogs() {
 
   function _getCurrentEntry() {
     return getCurrentEntry(stampEl);
+  }
+
+  function getLatestDisruptionEntry() {
+    const disruptions = getLogs()
+      .filter((entry) => Boolean(disruptionKey(entry)))
+      .slice()
+      .sort((a, b) => Number(utils.normalizeId(b?.id)) - Number(utils.normalizeId(a?.id)));
+    return disruptions[0] || null;
+  }
+
+  function renderOutputView() {
+    const youtubeHref = document.querySelector('#rightBlock2 a[href][data-tab="youtube"], #rightBlock2 a[href*="youtube"]')?.getAttribute('href')
+      || document.querySelector('#rightBlock2 a[href*="youtu"]')?.getAttribute('href')
+      || '#';
+    const bandcampHref = document.querySelector('#rightBlock2 a[href*="bandcamp"]')?.getAttribute('href') || '#';
+    const githubHref = document.querySelector('#rightBlock2 a[href*="github"]')?.getAttribute('href') || '#';
+
+    setViewMode(els, 'output');
+    textEl.innerHTML =
+      `<div class="mobile-output-node">` +
+      `EXTERNAL_NODES<br>` +
+      `TRANSMISSIONS : <a href="${utils.escapeHtml(youtubeHref)}">YOUTUBE</a><br>` +
+      `AUDIO_ARCHIVE : <a href="${utils.escapeHtml(bandcampHref)}">BANDCAMP</a><br>` +
+      `SOURCE_REPO   : <a href="${utils.escapeHtml(githubHref)}">GITHUB</a>` +
+      `</div>`;
+    if (typeof textEl.scrollTo === 'function') textEl.scrollTo(0, 0);
+    updateControls();
   }
 
   // === CLICK HANDLERS ===
@@ -174,6 +243,7 @@ export function initMobileLogs() {
     const entry = getLogsById().get(logId);
     if (entry) {
       setFromSearch(false);
+      setFromDisruption(true);
       renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, updateControls);
     }
   });
@@ -205,6 +275,7 @@ export function initMobileLogs() {
       if (!entry) return;
       setCurrentEntryId(utils.normalizeId(entry.id));
       setFromSearch(false);
+      setFromDisruption(false);
       renderDisruptionList(els, mobileQuery, entry, stampEl);
       updateControls();
     });
@@ -227,14 +298,22 @@ export function initMobileLogs() {
       if (!entry) return;
       setCurrentEntryId(logId);
       setFromSearch(false);
+      setFromDisruption(false);
       renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, updateControls);
     });
   }
 
   if (backFromSearchBtn) {
     backFromSearchBtn.addEventListener('click', async () => {
-      if (!isFromSearch()) return;
-      await openScan(els, mobileQuery);
+      if (isFromSearch()) {
+        await openScan(els, mobileQuery);
+        updateControls();
+        return;
+      }
+      if (!isFromDisruption()) return;
+      setFromSearch(false);
+      setFromDisruption(false);
+      renderDisruptionList(els, mobileQuery, _getCurrentEntry(), stampEl);
       updateControls();
     }, { passive: true });
   }
@@ -244,6 +323,45 @@ export function initMobileLogs() {
       if (!btn) return;
       e.preventDefault();
     }, { passive: false });
+  }
+
+  async function handleIndexTabClick(e) {
+    const link = e.target?.closest?.('a[data-tab]');
+    if (!link) return;
+
+    const tab = String(link.getAttribute('data-tab') || '').trim().toLowerCase();
+    if (!tab || (tab !== 'core' && tab !== 'disruption' && tab !== 'output')) return;
+    e.preventDefault();
+
+    if (tab === 'core') {
+      const coreUrl = String(link.getAttribute('href') || window.location.pathname).split('#')[0];
+      window.location.assign(`${coreUrl}#activeViewPanel`);
+      return;
+    }
+
+    await ensureLoaded();
+    if (!isLoaded()) return;
+
+    if (tab === 'disruption') {
+      const latestDisruption = getLatestDisruptionEntry();
+      if (!latestDisruption) return;
+      setFromSearch(false);
+      setFromDisruption(false);
+      renderDisruptionList(els, mobileQuery, latestDisruption, stampEl);
+      updateControls();
+      return;
+    }
+
+    setFromSearch(false);
+    setFromDisruption(false);
+    renderOutputView();
+  }
+
+  if (mobileIndexNav) {
+    mobileIndexNav.addEventListener('click', handleIndexTabClick);
+  }
+  if (desktopIndexNav) {
+    desktopIndexNav.addEventListener('click', handleIndexTabClick);
   }
   // === SUB-MODULE INIT ===
 
@@ -269,6 +387,8 @@ export function initMobileLogs() {
     if (!isLoaded()) return;
     const currentId = getOrderedIds()[resolveCurrentIndex(stampEl)];
     if (currentId) {
+      setFromSearch(false);
+      setFromDisruption(false);
       renderEntry(els, mobileQuery, getLogsById().get(currentId), stampEl, recentLogsRoot, updateControls);
     }
     updateControls();

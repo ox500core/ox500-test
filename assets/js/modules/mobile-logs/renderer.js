@@ -147,9 +147,10 @@ export function setViewMode(els, mode) {
 
   textEl.dataset.viewMode = mode;
   const isScanMode = mode === 'scan';
+  const hideMobileNav = isScanMode || mode === 'output';
 
   if (scanWrap) scanWrap.hidden = !isScanMode;
-  if (mobileNav) mobileNav.hidden = isScanMode;
+  if (mobileNav) mobileNav.hidden = hideMobileNav;
   textEl.hidden = isScanMode;
 
   if (scanBtn) {
@@ -159,6 +160,7 @@ export function setViewMode(els, mode) {
 
   if (isScanMode) setNodePill('NODE: QUERY_PORT');
   else if (mode === 'disruption-list') setNodePill('NODE: DISRUPTION');
+  else if (mode === 'output') setNodePill('NODE: OUTPUT');
   else setNodePill('NODE: LOG');
 }
 

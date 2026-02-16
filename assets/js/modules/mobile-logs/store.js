@@ -28,6 +28,7 @@ const state = {
 
   currentEntryId: '',
   fromSearch: false,
+  fromDisruption: false,
 };
 
 // === READ ===
@@ -42,6 +43,8 @@ export function getCurrentEntryId() { return state.currentEntryId; }
 export function setCurrentEntryId(id) { state.currentEntryId = id; }
 export function isFromSearch() { return state.fromSearch; }
 export function setFromSearch(v) { state.fromSearch = Boolean(v); }
+export function isFromDisruption() { return state.fromDisruption; }
+export function setFromDisruption(v) { state.fromDisruption = Boolean(v); }
 
 export function maxLoadedPage() {
   return state.loadedPages.size ? Math.max(...state.loadedPages) : 0;
@@ -180,4 +183,25 @@ export function maybePrefetchAroundCurrent(stampEl) {
     const nextNewerPage = minLoadedPage() - 1;
     if (nextNewerPage >= 1) loadPage(nextNewerPage);
   }
+}
+
+export async function maybePrefetchAroundListIndex(currentIndex, totalLength, edgeThreshold = 5) {
+  if (!state.loaded || !state.totalPages || !Number.isFinite(currentIndex) || !Number.isFinite(totalLength)) return;
+  if (totalLength <= 0 || currentIndex < 0) return;
+
+  const threshold = Math.max(0, Number(edgeThreshold) || 0);
+  const nearStart = currentIndex <= threshold;
+  const nearEnd = (totalLength - 1 - currentIndex) <= threshold;
+
+  const jobs = [];
+  if (nearStart) {
+    const nextOlderPage = maxLoadedPage() + 1;
+    if (nextOlderPage <= state.totalPages) jobs.push(loadPage(nextOlderPage));
+  }
+  if (nearEnd) {
+    const nextNewerPage = minLoadedPage() - 1;
+    if (nextNewerPage >= 1) jobs.push(loadPage(nextNewerPage));
+  }
+
+  if (jobs.length) await Promise.all(jobs);
 }

@@ -3,7 +3,7 @@
 // renders results, and handles deep-text-search toggle.
 
 import { utils } from '../../core/utils.js';
-import { getLogs, ensureAllLogsLoaded, isLoaded, setFromSearch } from './store.js';
+import { getLogs, ensureAllLogsLoaded, isLoaded, setFromSearch, setFromDisruption } from './store.js';
 import {
   deriveMobileLogEntryTitle,
   renderDisruptionList,
@@ -122,6 +122,7 @@ export async function openScan(els, mobileQuery) {
   await ensureAllLogsLoaded();
   if (!isLoaded()) return;
   setFromSearch(true);
+  setFromDisruption(false);
   setViewMode(els, 'scan');
   if (els.backFromSearchBtn) els.backFromSearchBtn.hidden = true;
   const { scanInput } = els;
@@ -137,6 +138,7 @@ export function closeScan(els, mobileQuery, stampEl, recentLogsRoot, updateContr
   const { textEl } = els;
   if (!textEl || textEl.dataset.viewMode !== 'scan') return;
   setFromSearch(false);
+  setFromDisruption(false);
 
   const entry = getCurrentEntry();
   if (lastNonScanMode === 'disruption-list' && entry) {
@@ -205,6 +207,7 @@ export function initScannerListeners(els, mobileQuery, stampEl, recentLogsRoot, 
       if (!entry) return;
       els.setCurrentEntryId(logId);
       setFromSearch(true);
+      setFromDisruption(false);
       renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, updateControls);
     });
   }

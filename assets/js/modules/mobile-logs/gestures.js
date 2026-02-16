@@ -19,10 +19,12 @@ import {
   resolveCurrentIndex,
   setCurrentEntryId,
   setFromSearch,
+  isFromDisruption,
   loadPage,
   maxLoadedPage,
   minLoadedPage,
   getState,
+  maybePrefetchAroundListIndex,
 } from './store.js';
 
 // === HELPERS ===
@@ -54,33 +56,48 @@ export async function stepBy(
   updateControls,
 ) {
   if (els?.textEl?.dataset?.viewMode === 'disruption-list') {
-    const currentEntry = getCurrentEntry(stampEl);
-    const currentKey = disruptionKey(currentEntry);
-    if (!currentKey) return;
+    const buildDisruptionState = () => {
+      const currentEntry = getCurrentEntry(stampEl);
+      const currentKey = disruptionKey(currentEntry);
+      if (!currentKey) return null;
 
-    const newestByKey = new Map();
-    getLogs().forEach((entry) => {
-      const key = disruptionKey(entry);
-      if (!key) return;
-      const idNum = Number(String(entry?.id || '').replace(/\D/g, ''));
-      const prev = newestByKey.get(key);
-      if (!prev || idNum > prev.idNum) {
-        newestByKey.set(key, { idNum, entry });
-      }
-    });
+      const newestByKey = new Map();
+      getLogs().forEach((entry) => {
+        const key = disruptionKey(entry);
+        if (!key) return;
+        const idNum = Number(String(entry?.id || '').replace(/\D/g, ''));
+        const prev = newestByKey.get(key);
+        if (!prev || idNum > prev.idNum) {
+          newestByKey.set(key, { idNum, entry });
+        }
+      });
 
-    const disruptionOrder = Array.from(newestByKey.entries())
-      .sort((a, b) => a[1].idNum - b[1].idNum)
-      .map(([key]) => key);
+      const disruptionOrder = Array.from(newestByKey.entries())
+        .sort((a, b) => a[1].idNum - b[1].idNum)
+        .map(([key]) => key);
 
-    const currentDisruptionIndex = disruptionOrder.indexOf(currentKey);
-    if (currentDisruptionIndex < 0) return;
+      const currentDisruptionIndex = disruptionOrder.indexOf(currentKey);
+      if (currentDisruptionIndex < 0) return null;
 
-    const targetDisruptionIndex = currentDisruptionIndex + direction;
-    if (targetDisruptionIndex < 0 || targetDisruptionIndex >= disruptionOrder.length) return;
+      return { newestByKey, disruptionOrder, currentDisruptionIndex };
+    };
 
-    const targetKey = disruptionOrder[targetDisruptionIndex];
-    const target = newestByKey.get(targetKey);
+    let currentState = buildDisruptionState();
+    if (!currentState) return;
+
+    void maybePrefetchAroundListIndex(currentState.currentDisruptionIndex, currentState.disruptionOrder.length, 10);
+
+    let targetDisruptionIndex = currentState.currentDisruptionIndex + direction;
+    if (targetDisruptionIndex < 0 || targetDisruptionIndex >= currentState.disruptionOrder.length) {
+      await maybePrefetchAroundListIndex(currentState.currentDisruptionIndex, currentState.disruptionOrder.length, 10);
+      currentState = buildDisruptionState();
+      if (!currentState) return;
+      targetDisruptionIndex = currentState.currentDisruptionIndex + direction;
+      if (targetDisruptionIndex < 0 || targetDisruptionIndex >= currentState.disruptionOrder.length) return;
+    }
+
+    const targetKey = currentState.disruptionOrder[targetDisruptionIndex];
+    const target = currentState.newestByKey.get(targetKey);
     if (!target?.entry) return;
 
     const targetId = String(target.entry.id || '').replace(/\D/g, '');
@@ -92,6 +109,51 @@ export async function stepBy(
 
     renderDisruptionList(els, mobileQuery, target.entry, stampEl);
     updateControls();
+    return;
+  }
+
+  if (isFromDisruption()) {
+    const buildDisruptionEntryList = () => {
+      const currentEntry = getCurrentEntry(stampEl);
+      const currentKey = disruptionKey(currentEntry);
+      if (!currentEntry || !currentKey) return null;
+
+      const list = getLogs()
+        .filter((entry) => disruptionKey(entry) === currentKey)
+        .slice()
+        .sort((a, b) => Number(String(a?.id || '').replace(/\D/g, '')) - Number(String(b?.id || '').replace(/\D/g, '')));
+
+      if (!list.length) return null;
+      const currentId = String(currentEntry?.id || '').replace(/\D/g, '');
+      const currentIdx = list.findIndex((entry) => String(entry?.id || '').replace(/\D/g, '') === currentId);
+      if (currentIdx < 0) return null;
+      return { list, currentIdx };
+    };
+
+    const state = getState();
+    let disruptionState = buildDisruptionEntryList();
+    if (!disruptionState) return;
+
+    let targetIdx = disruptionState.currentIdx + direction;
+    if (targetIdx < 0 || targetIdx >= disruptionState.list.length) {
+      if (direction < 0) {
+        const olderPage = maxLoadedPage() + 1;
+        if (olderPage <= state.totalPages) await loadPage(olderPage);
+      } else if (direction > 0) {
+        const newerPage = minLoadedPage() - 1;
+        if (newerPage >= 1) await loadPage(newerPage);
+      }
+
+      disruptionState = buildDisruptionEntryList();
+      if (!disruptionState) return;
+      targetIdx = disruptionState.currentIdx + direction;
+      if (targetIdx < 0 || targetIdx >= disruptionState.list.length) return;
+    }
+
+    const targetEntry = disruptionState.list[targetIdx];
+    if (!targetEntry) return;
+    setFromSearch(false);
+    renderEntry(els, mobileQuery, targetEntry, stampEl, recentLogsRoot, updateControls);
     return;
   }
 
@@ -131,6 +193,13 @@ export async function stepBy(
 
 export function buildTouchHandlers(els, mobileQuery, stampEl, recentLogsRoot, updateControls, getCurrentEntry) {
   const { panel, textEl } = els;
+  const tabletLandscapeQuery = (typeof window.matchMedia === 'function')
+    ? window.matchMedia('(min-width: 981px) and (max-width: 1400px) and (orientation: landscape) and (hover: none) and (pointer: coarse)')
+    : null;
+
+  function gesturesEnabled() {
+    return Boolean(mobileQuery?.matches || tabletLandscapeQuery?.matches);
+  }
 
   let startX = 0;
   let startY = 0;
@@ -138,7 +207,7 @@ export function buildTouchHandlers(els, mobileQuery, stampEl, recentLogsRoot, up
   let trackingTouch = false;
 
   function onTouchStart(e) {
-    if (!mobileQuery.matches || !e.touches || e.touches.length !== 1) return;
+    if (!gesturesEnabled() || !e.touches || e.touches.length !== 1) return;
     const touch = e.touches[0];
     startX = touch.clientX;
     startY = touch.clientY;
@@ -150,7 +219,7 @@ export function buildTouchHandlers(els, mobileQuery, stampEl, recentLogsRoot, up
   }
 
   function onTouchEnd(e) {
-    if (!trackingTouch || !mobileQuery.matches || !isLoaded()) return;
+    if (!trackingTouch || !gesturesEnabled() || !isLoaded()) return;
     trackingTouch = false;
     panel.querySelectorAll('.mobile-active-log-title.is-pressed')
       .forEach((el) => el.classList.remove('is-pressed'));
