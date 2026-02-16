@@ -14,6 +14,34 @@ import {
   getState,
 } from './store.js';
 
+const MOBILE_TOPBAR_QUERY = '(max-width: 640px)';
+const LOG_TITLE_PREFIX_RE = /^LOG\s*\d+\s*\/\/\s*/i;
+const DISRUPTION_PREFIX_RE = /^DISRUPTION(?:_SERIES)?\s*\/\/\s*/i;
+const SERIES_PREFIX_RE = /^SERIES\s*\/\/\s*/i;
+const DISRUPTION_SLASH_PREFIX_RE = /^DISRUPTION\s*\/\s*/i;
+
+function cleanupDisruptionText(rawText) {
+  return String(rawText || '')
+    .trim()
+    .replace(DISRUPTION_PREFIX_RE, '')
+    .replace(SERIES_PREFIX_RE, '')
+    .replace(DISRUPTION_SLASH_PREFIX_RE, '')
+    .trim();
+}
+
+function stripLogTitlePrefix(rawTitle) {
+  return String(rawTitle || '').trim().replace(LOG_TITLE_PREFIX_RE, '').trim();
+}
+
+function createTitleActionHtml(mobileQuery, nodeTitle) {
+  const titleActionAttrs = mobileQuery.matches
+    ? `data-open-disruption-list="1" role="button" tabindex="0"` : '';
+  const titleActionHtml = mobileQuery.matches
+    ? `<span class="mobile-active-log-name">${utils.escapeHtml(nodeTitle)}</span>`
+    : `<a class="mobile-active-log-link" data-open-disruption-list="1" href="#">${utils.escapeHtml(nodeTitle)}</a>`;
+  return { titleActionAttrs, titleActionHtml };
+}
+
 // === TEXT HELPERS ===
 
 export function toLogHtml(rawText) {
@@ -35,21 +63,16 @@ export function deriveMobileDisruptionTitle(entry) {
   if (clean) return clean;
 
   const rawSeries = String(entry?.series || entry?.disruption || '').trim();
-  const rawTitle = String(entry?.title || '').trim();
+  const rawTitle = stripLogTitlePrefix(entry?.title);
 
-  let title = rawSeries;
-  title = title.replace(/^DISRUPTION(?:_SERIES)?\s*\/\/\s*/i, '').trim();
-  title = title.replace(/^SERIES\s*\/\/\s*/i, '').trim();
-  title = title.replace(/^DISRUPTION\s*\/\s*/i, '').trim();
-
-  if (!title) title = rawTitle.replace(/^LOG\s*\d+\s*\/\/\s*/i, '').trim();
+  let title = cleanupDisruptionText(rawSeries);
+  if (!title) title = rawTitle;
   return title || 'UNTITLED';
 }
 
 export function deriveMobileLogEntryTitle(entry) {
-  let title = String(entry?.title || '').trim();
-  title = title.replace(/^LOG\s*\d+\s*\/\/\s*/i, '').trim();
-  title = title.replace(/^DISRUPTION(?:_SERIES)?\s*\/\/\s*/i, '').trim();
+  let title = stripLogTitlePrefix(entry?.title);
+  title = title.replace(DISRUPTION_PREFIX_RE, '').trim();
   return title || 'UNTITLED';
 }
 
@@ -57,10 +80,7 @@ export function disruptionKey(entry) {
   const cleanSlug = String(entry?.disruption_slug_clean || '').trim();
   if (cleanSlug) return cleanSlug;
 
-  let title = String(entry?.series || entry?.disruption || '').trim();
-  title = title.replace(/^DISRUPTION(?:_SERIES)?\s*\/\/\s*/i, '').trim();
-  title = title.replace(/^SERIES\s*\/\/\s*/i, '').trim();
-  title = title.replace(/^DISRUPTION\s*\/\s*/i, '').trim();
+  const title = cleanupDisruptionText(entry?.series || entry?.disruption || '');
   return title.toUpperCase();
 }
 
@@ -91,20 +111,51 @@ export function pickEntryForDisruptionSlug(slug) {
 
 // === DOM HELPERS ===
 
+function _syncAvailableForMode(mode, disruptionTotal) {
+  const availEl = document.getElementById('avail');
+  if (!availEl) return;
+
+  if (mode === 'disruption-list' && Number.isFinite(disruptionTotal)) {
+    const next = String(Math.max(0, Math.trunc(disruptionTotal))).padStart(3, '0');
+    availEl.dataset.dynamicValue = next;
+    availEl.textContent = next;
+    return;
+  }
+
+  delete availEl.dataset.dynamicValue;
+  const base = String(availEl.dataset.buildValue || '').trim();
+  if (base) availEl.textContent = base;
+}
+
 export function setLogStamp(stampEl, id, date) {
   if (!stampEl) return;
-  stampEl.textContent = `${id} ${date}`;
+  const isNarrowMobile = typeof window.matchMedia === 'function' && window.matchMedia(MOBILE_TOPBAR_QUERY).matches;
+  const activeViewMode = document.querySelector('#activeViewPanel .bd.log-text')?.dataset?.viewMode || '';
+  const isLogView = activeViewMode === 'entry' || activeViewMode === '';
+  const rawDate = String(date || '').trim();
+  const shortDateMatch = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const shortDate = shortDateMatch
+    ? `${shortDateMatch[1].slice(-2)}.${shortDateMatch[2]}.${shortDateMatch[3]}`
+    : rawDate;
+  const displayDate = (isNarrowMobile && isLogView) ? shortDate : rawDate;
+  stampEl.textContent = displayDate ? `${id} ${displayDate}` : `${id}`;
   const nodePill = document.getElementById('topbarNodePill');
   if (!nodePill) return;
+  nodePill.dataset.nodeType = 'log';
+  nodePill.dataset.logId = String(id || '');
+  nodePill.dataset.logDateDisplay = String(displayDate || '');
   nodePill.textContent = 'NODE: ';
   const valueEl = document.createElement('b');
-  valueEl.textContent = `LOG ${id} ${date}`;
+  valueEl.textContent = displayDate ? `LOG ${id} ${displayDate}` : `LOG ${id}`;
   nodePill.appendChild(valueEl);
 }
 
 export function setNodePill(text) {
   const nodePill = document.getElementById('topbarNodePill');
   if (!nodePill) return;
+  delete nodePill.dataset.nodeType;
+  delete nodePill.dataset.logId;
+  delete nodePill.dataset.logDateDisplay;
   const raw = String(text || '');
   nodePill.textContent = '';
   const idx = raw.indexOf(':');
@@ -141,7 +192,7 @@ export function markCurrentDisruptionNode(entry) {
 
 // === VIEW MODE ===
 
-export function setViewMode(els, mode) {
+export function setViewMode(els, mode, options = {}) {
   const { textEl, scanWrap, mobileNav, scanBtn } = els;
   if (!textEl) return;
 
@@ -162,6 +213,8 @@ export function setViewMode(els, mode) {
   else if (mode === 'disruption-list') setNodePill('NODE: DISRUPTION');
   else if (mode === 'output') setNodePill('NODE: OUTPUT');
   else setNodePill('NODE: LOG');
+
+  _syncAvailableForMode(mode, options.disruptionTotal);
 }
 
 // === RENDER FUNCTIONS ===
@@ -179,6 +232,11 @@ export function renderDisruptionList(els, mobileQuery, sourceEntry, stampEl) {
     .filter((item) => disruptionKey(item) === key)
     .slice()
     .sort((a, b) => Number(utils.normalizeId(a.id)) - Number(utils.normalizeId(b.id)));
+  const totalDisruptions = new Set(
+    getLogs()
+      .map((item) => disruptionKey(item))
+      .filter(Boolean),
+  ).size;
 
   if (!list.length) return;
 
@@ -196,13 +254,9 @@ export function renderDisruptionList(els, mobileQuery, sourceEntry, stampEl) {
     })
     .join('');
 
-  const titleActionAttrs = mobileQuery.matches
-    ? `data-open-disruption-list="1" role="button" tabindex="0"` : '';
-  const titleActionHtml = mobileQuery.matches
-    ? `<span class="mobile-active-log-name">${utils.escapeHtml(nodeTitle)}</span>`
-    : `<a class="mobile-active-log-link" data-open-disruption-list="1" href="#">${utils.escapeHtml(nodeTitle)}</a>`;
+  const { titleActionAttrs, titleActionHtml } = createTitleActionHtml(mobileQuery, nodeTitle);
 
-  setViewMode(els, 'disruption-list');
+  setViewMode(els, 'disruption-list', { disruptionTotal: totalDisruptions });
   markCurrentDisruptionNode(entry);
   textEl.innerHTML =
     `<div class="mobile-active-log-title" ${titleActionAttrs}>` +
@@ -279,11 +333,7 @@ export function renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, up
   const cleanTitle = deriveMobileDisruptionTitle(entry);
   const cleanLogTitle = deriveMobileLogEntryTitle(entry);
 
-  const titleActionAttrs = mobileQuery.matches
-    ? `data-open-disruption-list="1" role="button" tabindex="0"` : '';
-  const titleActionHtml = mobileQuery.matches
-    ? `<span class="mobile-active-log-name">${utils.escapeHtml(cleanTitle)}</span>`
-    : `<a class="mobile-active-log-link" data-open-disruption-list="1" href="#">${utils.escapeHtml(cleanTitle)}</a>`;
+  const { titleActionAttrs, titleActionHtml } = createTitleActionHtml(mobileQuery, cleanTitle);
 
   const titleHtml =
     `<div class="mobile-active-log-title" ${titleActionAttrs}>` +

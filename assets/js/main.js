@@ -12,20 +12,31 @@
 import { initBoot }        from './modules/boot.js';
 import { initTick }        from './modules/tick.js';
 import { initUptime }      from './modules/uptime.js';
+import { initTopbarStatus } from './modules/topbar-status.js';
+import { initSystemPhaseUi } from './modules/system-phase-ui.js';
 import { initDiagnostics } from './modules/diagnostics.js';
 import { initFeed }        from './modules/feed.js';
 import { initGlitch }      from './modules/glitch.js';
 import { initMobileLogs }  from './modules/mobile-logs/index.js';
-import "./modules/next-log-label.js";
+import { initNextLogLabel } from './modules/next-log-label.js';
 
 // === BOOT ===
 // Run synchronously before DOMContentLoaded where possible,
 // otherwise each init function guards itself.
 
-initBoot();
-initTick();
-initUptime();
-initDiagnostics();
-initFeed();
-initGlitch();
-initMobileLogs();
+const INITIALIZERS = [
+  initBoot,
+  initTick,
+  initUptime,
+  initTopbarStatus,
+  initSystemPhaseUi,
+  initDiagnostics,
+  initFeed,
+  initGlitch,
+  initMobileLogs,
+  initNextLogLabel,
+];
+
+INITIALIZERS.forEach((initFn) => {
+  initFn();
+});

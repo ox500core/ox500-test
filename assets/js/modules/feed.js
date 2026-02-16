@@ -63,6 +63,10 @@ const FEED_POOLS = {
   ],
 };
 
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
+
 // === INIT ===
 
 export function initFeed() {
@@ -96,7 +100,7 @@ export function initFeed() {
     target.textContent = `[${stamp}] ${msg}`;
     bus.emit('feed:push', { message: msg, phase: currentPhase });
     feedIdx += 1;
-    scheduleFeed(FEED_INTERVAL_MS[0] + Math.random() * (FEED_INTERVAL_MS[1] - FEED_INTERVAL_MS[0]));
+    scheduleFeed(randomBetween(FEED_INTERVAL_MS[0], FEED_INTERVAL_MS[1]));
   }
 
   bus.on('system:phase', (payload) => {

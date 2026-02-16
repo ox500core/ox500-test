@@ -1,4 +1,4 @@
-﻿// === MOBILE LOGS â€” SCANNER ===
+// === MOBILE LOGS - SCANNER ===
 // Full-text search engine. Manages scan state, debounces input,
 // renders results, and handles deep-text-search toggle.
 
@@ -14,13 +14,37 @@ import {
 import { SCAN_CONFIG } from './config.js';
 
 // === SCAN STATE ===
-// Isolated to this module â€” scanner owns its own mutable state.
+// Isolated to this module - scanner owns its own mutable state.
 
 let deepTextSearchEnabled = SCAN_CONFIG.DEEP_SEARCH_ENABLED;
 let scanResultsLimit = SCAN_CONFIG.MAX_RESULTS;
 let scanLastNeedle = '';
 let scanMatchesCache = [];
 let scanInputDebounceTimer = null;
+
+function toLowerText(value) {
+  return String(value || '').toLowerCase();
+}
+
+function entryMatchesNeedle(entry, needle, deepActive) {
+  const id = toLowerText(entry?.id);
+  const title = toLowerText(entry?.title);
+  const tag = toLowerText(entry?.tag);
+  const disruptionTitle = toLowerText(entry?.disruption_title_clean);
+  const disruptionSlug = toLowerText(entry?.disruption_slug_clean);
+  const excerpt = toLowerText(entry?.excerpt);
+  const textMatch = deepActive ? toLowerText(entry?.text).includes(needle) : false;
+
+  return (
+    id.includes(needle) ||
+    title.includes(needle) ||
+    tag.includes(needle) ||
+    disruptionTitle.includes(needle) ||
+    disruptionSlug.includes(needle) ||
+    excerpt.includes(needle) ||
+    textMatch
+  );
+}
 
 // === RENDER ===
 
@@ -46,27 +70,9 @@ export function renderScanResults(els, q, options) {
   if (opts.useCached && needle === scanLastNeedle) {
     matchesAll = scanMatchesCache;
   } else {
-    matchesAll = getLogs().filter((entry) => {
-      const id = String(entry?.id || '').toLowerCase();
-      const title = String(entry?.title || '').toLowerCase();
-      const tag = String(entry?.tag || '').toLowerCase();
-      const disruptionTitle = String(entry?.disruption_title_clean || '').toLowerCase();
-      const disruptionSlug = String(entry?.disruption_slug_clean || '').toLowerCase();
-      const excerpt = String(entry?.excerpt || '').toLowerCase();
-      const textMatch = deepActive
-        ? String(entry?.text || '').toLowerCase().includes(needle)
-        : false;
-
-      return (
-        id.includes(needle) ||
-        title.includes(needle) ||
-        tag.includes(needle) ||
-        disruptionTitle.includes(needle) ||
-        disruptionSlug.includes(needle) ||
-        excerpt.includes(needle) ||
-        textMatch
-      );
-    }).sort((a, b) => Number(utils.normalizeId(b.id)) - Number(utils.normalizeId(a.id)));
+    matchesAll = getLogs()
+      .filter((entry) => entryMatchesNeedle(entry, needle, deepActive))
+      .sort((a, b) => Number(utils.normalizeId(b.id)) - Number(utils.normalizeId(a.id)));
 
     scanLastNeedle = needle;
     scanMatchesCache = matchesAll;

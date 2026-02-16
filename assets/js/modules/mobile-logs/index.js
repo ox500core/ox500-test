@@ -32,6 +32,44 @@ import { initGestureListeners } from './gestures.js';
 import { initScannerListeners, openScan } from './scanner.js';
 import { MOBILE_BREAKPOINT } from './config.js';
 
+function normalizedId(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function numericId(value) {
+  return Number(normalizedId(value));
+}
+
+function applyNavButtonState(button, enabled) {
+  if (!button) return;
+  button.disabled = !enabled;
+  button.classList.toggle('disabled', !enabled);
+}
+
+function buildDisruptionOrderMap(logs) {
+  const newestByKey = new Map();
+  logs.forEach((entry) => {
+    const key = disruptionKey(entry);
+    if (!key) return;
+    const idNum = numericId(entry?.id);
+    const previous = newestByKey.get(key);
+    if (!previous || idNum > previous.idNum) newestByKey.set(key, { idNum, entry });
+  });
+  const disruptionOrder = Array.from(newestByKey.entries())
+    .sort((a, b) => a[1].idNum - b[1].idNum)
+    .map(([key]) => key);
+  return { newestByKey, disruptionOrder };
+}
+
+function createDisruptionCache() {
+  return {
+    key: '',
+    disruptionOrder: [],
+    newestByKey: new Map(),
+    entriesByKey: new Map(),
+  };
+}
+
 // === INIT ===
 
 export function initMobileLogs() {
@@ -85,6 +123,34 @@ export function initMobileLogs() {
     attributes: true,
     attributeFilter: ['data-view-mode'],
   });
+  const disruptionCache = createDisruptionCache();
+
+  function getLogsVersionKey() {
+    const logs = getLogs();
+    if (!logs.length) return '0';
+    return `${logs.length}:${logs[0]?.id || ''}:${logs[logs.length - 1]?.id || ''}`;
+  }
+
+  function getDisruptionData() {
+    const key = getLogsVersionKey();
+    if (disruptionCache.key === key) return disruptionCache;
+
+    const logs = getLogs();
+    const { newestByKey, disruptionOrder } = buildDisruptionOrderMap(logs);
+    const entriesByKey = new Map();
+    logs.forEach((entry) => {
+      const dKey = disruptionKey(entry);
+      if (!dKey) return;
+      if (!entriesByKey.has(dKey)) entriesByKey.set(dKey, []);
+      entriesByKey.get(dKey).push(entry);
+    });
+
+    disruptionCache.key = key;
+    disruptionCache.disruptionOrder = disruptionOrder;
+    disruptionCache.newestByKey = newestByKey;
+    disruptionCache.entriesByKey = entriesByKey;
+    return disruptionCache;
+  }
 
   // === CONTROLS ===
 
@@ -120,18 +186,7 @@ export function initMobileLogs() {
         return;
       }
 
-      const newestByKey = new Map();
-      getLogs().forEach((entry) => {
-        const key = disruptionKey(entry);
-        if (!key) return;
-        const idNum = Number(String(entry?.id || '').replace(/\D/g, ''));
-        const prev = newestByKey.get(key);
-        if (!prev || idNum > prev.idNum) newestByKey.set(key, { idNum, entry });
-      });
-
-      const disruptionOrder = Array.from(newestByKey.entries())
-        .sort((a, b) => a[1].idNum - b[1].idNum)
-        .map(([key]) => key);
+      const { disruptionOrder } = getDisruptionData();
       const idx = disruptionOrder.indexOf(currentKey);
       const canPrev = idx > 0;
       const canNext = idx >= 0 && idx < disruptionOrder.length - 1;
@@ -140,10 +195,8 @@ export function initMobileLogs() {
         void maybePrefetchAroundListIndex(idx, disruptionOrder.length, 10);
       }
 
-      prevBtn.disabled = !canPrev;
-      nextBtn.disabled = !canNext;
-      prevBtn.classList.toggle('disabled', !canPrev);
-      nextBtn.classList.toggle('disabled', !canNext);
+      applyNavButtonState(prevBtn, canPrev);
+      applyNavButtonState(nextBtn, canNext);
       return;
     }
 
@@ -151,22 +204,18 @@ export function initMobileLogs() {
       const currentEntry = getCurrentEntry(stampEl);
       const currentKey = disruptionKey(currentEntry);
       if (currentEntry && currentKey) {
-        const list = getLogs()
-          .filter((entry) => disruptionKey(entry) === currentKey)
-          .slice()
-          .sort((a, b) => Number(String(a?.id || '').replace(/\D/g, '')) - Number(String(b?.id || '').replace(/\D/g, '')));
+        const { entriesByKey } = getDisruptionData();
+        const list = entriesByKey.get(currentKey) || [];
 
-        const currentId = String(currentEntry?.id || '').replace(/\D/g, '');
-        const idx = list.findIndex((entry) => String(entry?.id || '').replace(/\D/g, '') === currentId);
+        const currentId = normalizedId(currentEntry?.id);
+        const idx = list.findIndex((entry) => normalizedId(entry?.id) === currentId);
 
         if (idx >= 0) {
           void maybePrefetchAroundListIndex(idx, list.length, 10);
           const canPrev = idx > 0;
           const canNext = idx < list.length - 1;
-          prevBtn.disabled = !canPrev;
-          nextBtn.disabled = !canNext;
-          prevBtn.classList.toggle('disabled', !canPrev);
-          nextBtn.classList.toggle('disabled', !canNext);
+          applyNavButtonState(prevBtn, canPrev);
+          applyNavButtonState(nextBtn, canNext);
           return;
         }
       }
@@ -176,10 +225,8 @@ export function initMobileLogs() {
     const canPrev = idx > 0;
     const canNext = idx >= 0 && idx < getOrderedIds().length - 1;
 
-    prevBtn.disabled = !canPrev;
-    nextBtn.disabled = !canNext;
-    prevBtn.classList.toggle('disabled', !canPrev);
-    nextBtn.classList.toggle('disabled', !canNext);
+    applyNavButtonState(prevBtn, canPrev);
+    applyNavButtonState(nextBtn, canNext);
   }
 
   // === CURRENT ENTRY GETTER ===
@@ -189,11 +236,10 @@ export function initMobileLogs() {
   }
 
   function getLatestDisruptionEntry() {
-    const disruptions = getLogs()
-      .filter((entry) => Boolean(disruptionKey(entry)))
-      .slice()
-      .sort((a, b) => Number(utils.normalizeId(b?.id)) - Number(utils.normalizeId(a?.id)));
-    return disruptions[0] || null;
+    const { disruptionOrder, newestByKey } = getDisruptionData();
+    if (!disruptionOrder.length) return null;
+    const latestKey = disruptionOrder[disruptionOrder.length - 1];
+    return newestByKey.get(latestKey)?.entry || null;
   }
 
   function renderOutputView() {

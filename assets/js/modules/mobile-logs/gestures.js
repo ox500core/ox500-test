@@ -29,6 +29,18 @@ import {
 
 // === HELPERS ===
 
+function normalizedId(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function numericId(value) {
+  return Number(normalizedId(value));
+}
+
+function sortEntriesByIdAsc(entries) {
+  return entries.slice().sort((a, b) => numericId(a?.id) - numericId(b?.id));
+}
+
 function vibrateTap(mobileQuery, ms = 10) {
   try {
     if (!mobileQuery.matches) return;
@@ -65,7 +77,7 @@ export async function stepBy(
       getLogs().forEach((entry) => {
         const key = disruptionKey(entry);
         if (!key) return;
-        const idNum = Number(String(entry?.id || '').replace(/\D/g, ''));
+        const idNum = numericId(entry?.id);
         const prev = newestByKey.get(key);
         if (!prev || idNum > prev.idNum) {
           newestByKey.set(key, { idNum, entry });
@@ -100,7 +112,7 @@ export async function stepBy(
     const target = currentState.newestByKey.get(targetKey);
     if (!target?.entry) return;
 
-    const targetId = String(target.entry.id || '').replace(/\D/g, '');
+    const targetId = normalizedId(target.entry.id);
     if (targetId) {
       setCurrentEntryId(targetId);
       if (document.body) document.body.dataset.logLevel = targetId;
@@ -120,14 +132,14 @@ export async function stepBy(
 
       const list = getLogs()
         .filter((entry) => disruptionKey(entry) === currentKey)
-        .slice()
-        .sort((a, b) => Number(String(a?.id || '').replace(/\D/g, '')) - Number(String(b?.id || '').replace(/\D/g, '')));
+        .slice();
+      const sortedList = sortEntriesByIdAsc(list);
 
-      if (!list.length) return null;
-      const currentId = String(currentEntry?.id || '').replace(/\D/g, '');
-      const currentIdx = list.findIndex((entry) => String(entry?.id || '').replace(/\D/g, '') === currentId);
+      if (!sortedList.length) return null;
+      const currentId = normalizedId(currentEntry?.id);
+      const currentIdx = sortedList.findIndex((entry) => normalizedId(entry?.id) === currentId);
       if (currentIdx < 0) return null;
-      return { list, currentIdx };
+      return { list: sortedList, currentIdx };
     };
 
     const state = getState();

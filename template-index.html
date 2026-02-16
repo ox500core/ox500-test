@@ -27,7 +27,7 @@
   <script type="application/ld+json">{{DISRUPTION_SERIES_JSONLD}}</script>
 </head>
 <body data-log-level="{{LATEST_LOG_ID}}" data-core-start="{{SYSTEM_CORE_START_UTC}}" data-layout="home">
-    <main aria-label="OX500 STATION interface">
+  <main aria-label="OX500 STATION interface">
 
   <div class="vignette" aria-hidden="true"></div>
   <div class="noise" aria-hidden="true"></div>
@@ -41,7 +41,7 @@
 
       <div class="live-feed-inline">
         <span class="live-feed-label">LIVE_FEED</span>
-        <span class="live-feed-line" id="feed1">AUTH_FAIL: USER_UNKNOWN</span>
+        <span class="live-feed-line" id="feed1">ARCHIVE BUS: STABLE LINK</span>
       </div>
 
       <div class="grid grid-sidebars-wide">
@@ -52,6 +52,23 @@
             <span class="pill optional deep">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
           </div>
           <div class="right">
+            <span class="topbar-status" id="topbarStatus" aria-hidden="true">
+              <span class="topbar-status-item">
+                <span class="topbar-status-icon" id="topbarStatusDriftIcon">⏱️</span>
+                <span class="topbar-status-value" id="topbarStatusDriftValue">+0.000</span>
+              </span>
+              <span class="topbar-status-item">
+                <span class="topbar-status-icon" id="topbarStatusAnomalyIcon">⚠️</span>
+                <span class="topbar-status-value" id="topbarStatusAnomalyValue">0.00</span>
+              </span>
+              <span class="topbar-status-item topbar-status-item-density">
+                <span class="topbar-status-icon" id="topbarStatusDensityIcon">📶</span>
+                <span class="topbar-status-value" id="topbarStatusDensityValue">0.00</span>
+              </span>
+              <span class="topbar-status-item topbar-status-item-phase">
+                <span class="topbar-status-icon phase-dot" id="topbarStatusPhaseIcon">🟢</span>
+              </span>
+            </span>
             <span class="pill optional deep">SYS <b id="sysVer">{{SYS_VER}}</b></span>
             <span class="pill optional deep" id="topbarSensorPill">{{SENSOR_LABEL}} <span class="hot">{{SENSOR_CODE}}</span> INIT</span>
             <span class="pill time-pill">TIME <b id="clock">--:--:--</b></span>
@@ -66,7 +83,7 @@
               <span class="log-line naked recent-log-next">NEXT LOG IN: <b id="nextLogCountdown" data-next-log="{{NEXT_LOG_UTC}}">...</b></span>
             </div>
           </section>
-          <section class="panel" id="disruptionNodesPanel">
+          <section class="panel recent-logs" id="disruptionNodesPanel">
             <div class="hd"><span class="tag">DISRUPTION_NODES</span><span>SERIES</span></div>
             <div class="bd" id="leftBlock3">
               {{DISRUPTION_NODES}}
@@ -102,7 +119,6 @@
               <button type="button" class="mobile-log-nav-btn next" id="mobileNextLogBtn" aria-label="Next log">NEXT &#9654;</button>
             </div>
           </section>
-
           <nav class="mobile-index-nav" aria-label="mobile index menu">
             <a href="{{CANONICAL}}" data-tab="core">CORE</a>
             <a href="{{CANONICAL}}#disruptionNodesPanel" data-tab="disruption">DISRUPTION</a>
@@ -120,24 +136,28 @@
         </div>
 
         <div class="rightcol">
-          <section class="panel">
+          <section class="panel recent-logs">
             <div class="hd"><span class="tag">DIAGNOSTICS</span><span>STATE</span></div>
-            <div class="bd mono" id="rightBlock1">CPU LOAD: 94% [CRITICAL]
-THERMAL: 87&deg;C [WARNING]
-DISK ERRORS: 2847 SECTORS
-NETWORK: UNSTABLE
-SECURITY: DISABLED</div>
+            <div class="bd mono" id="rightBlock1">
+              <span class="diag-line log-line naked"><span class="log-id">TEMPORAL DRIFT:</span><span class="log-tag">+0.003</span></span>
+              <span class="diag-line log-line naked"><span class="log-id">EVENT DENSITY:</span><span class="log-tag">LOW</span></span>
+              <span class="diag-line log-line naked"><span class="log-id">SIGNAL COHERENCE:</span><span class="log-tag">0.98</span></span>
+              <span class="diag-line log-line naked"><span class="log-id">ANOMALY PROBABILITY:</span><span class="log-tag">LOW</span></span>
+              <span class="diag-line log-line naked"><span class="log-id">SYSTEM PHASE:</span><span class="log-tag"><span class="diag-phase-value diag-phase-nominal">NOMINAL</span></span></span>
+              <span class="diag-line log-line naked"><span class="log-id">LAST TRANSIENT:</span><span class="log-tag">ARCHIVE LINK STABLE</span></span>
+            </div>
           </section>
 
-          <section class="panel">
+          <section class="panel recent-logs">
             <div class="hd"><span class="tag">INDEX</span><span>MAP</span></div>
-            <div class="bd mono" id="rightBlock2">CORE        : <a href="{{CANONICAL}}" data-tab="core">CORE</a>
-DISRUPTION  : <a href="{{CANONICAL}}#disruptionNodesPanel" data-tab="disruption">DISRUPTION</a>
-
-EXTERNAL_NODES
-TRANSMISSIONS : <a href="{{YOUTUBE}}">YOUTUBE</a>
-AUDIO_ARCHIVE : <a href="{{BANDCAMP}}">BANDCAMP</a>
-SOURCE_REPO   : <a href="{{GITHUB}}">GITHUB</a></div>
+            <div class="bd mono" id="rightBlock2">
+              <a class="log-line naked" href="{{CANONICAL}}" data-tab="core"><span class="log-id">CORE :</span><span class="log-tag">CORE</span></a>
+              <a class="log-line naked" href="{{CANONICAL}}#disruptionNodesPanel" data-tab="disruption"><span class="log-id">DISRUPTION :</span><span class="log-tag">DISRUPTION</span></a>
+              <span class="log-line naked"><span class="log-id">EXTERNAL_NODES</span><span class="log-tag"></span></span>
+              <a class="log-line naked" href="{{YOUTUBE}}"><span class="log-id">TRANSMISSIONS :</span><span class="log-tag">YOUTUBE</span></a>
+              <a class="log-line naked" href="{{BANDCAMP}}"><span class="log-id">AUDIO_ARCHIVE :</span><span class="log-tag">BANDCAMP</span></a>
+              <a class="log-line naked" href="{{GITHUB}}"><span class="log-id">SOURCE_REPO :</span><span class="log-tag">GITHUB</span></a>
+            </div>
           </section>
 
         </div>
@@ -176,38 +196,30 @@ SOURCE_REPO   : <a href="{{GITHUB}}">GITHUB</a></div>
       var activeViewPanel = document.getElementById("activeViewPanel");
       var activeViewBody = activeViewPanel ? activeViewPanel.querySelector(".bd") : null;
       var topbarLeft = document.querySelector(".topbar .left");
-      var topbarRight = document.querySelector(".topbar .right");
       var activeViewHeader = document.querySelector("#activeViewPanel .hd");
-      if (!stamp || !topbarLeft || !topbarRight || !activeViewHeader || !scanBtn || !modeSwitch || !scanWrap || !activeViewPanel || !activeViewBody) return;
+      if (!stamp || !topbarLeft || !activeViewHeader || !scanBtn || !modeSwitch || !scanWrap || !activeViewPanel || !activeViewBody) return;
 
       var mobileQuery = window.matchMedia("(max-width: 980px)");
+      var optionalLeftPill = topbarLeft.querySelector(".optional.deep");
+
+      function moveNode(node, parent, beforeNode) {
+        if (!node || !parent) return;
+        if (node.parentElement === parent && (!beforeNode || node.nextSibling === beforeNode)) return;
+        parent.insertBefore(node, beforeNode || null);
+      }
 
       function placeStamp() {
+        moveNode(scanBtn, modeSwitch);
+        moveNode(scanWrap, activeViewPanel, activeViewBody);
+
         if (mobileQuery.matches) {
-          if (stamp.parentElement !== activeViewHeader) {
-            activeViewHeader.appendChild(stamp);
-          }
-          if (scanBtn.parentElement !== topbarRight) {
-            topbarRight.insertBefore(scanBtn, topbarRight.firstChild || null);
-          }
-          if (scanWrap.parentElement !== activeViewPanel) {
-            activeViewPanel.insertBefore(scanWrap, activeViewBody);
-          }
-          scanBtn.classList.add("mobile-topbar-scan");
+          moveNode(stamp, activeViewHeader);
+          scanBtn.classList.remove("mobile-topbar-scan");
           stamp.classList.add("mobile-activeview-log-stamp");
           return;
         }
 
-        if (stamp.parentElement !== topbarLeft) {
-          var optional = topbarLeft.querySelector(".optional.deep");
-          topbarLeft.insertBefore(stamp, optional || null);
-        }
-        if (scanBtn.parentElement !== modeSwitch) {
-          modeSwitch.appendChild(scanBtn);
-        }
-        if (scanWrap.parentElement !== activeViewPanel) {
-          activeViewPanel.insertBefore(scanWrap, activeViewBody);
-        }
+        moveNode(stamp, topbarLeft, optionalLeftPill);
         scanBtn.classList.remove("mobile-topbar-scan");
         stamp.classList.remove("mobile-activeview-log-stamp");
       }

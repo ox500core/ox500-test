@@ -2,6 +2,13 @@
 // Fetches paginated log data from /data/*.json endpoints.
 // No state — pure async fetch functions.
 
+const DATA_ROOT = '/data';
+const LOGS_META_PATH = `${DATA_ROOT}/logs-pages-meta.json`;
+
+function logsPagePath(pageNum) {
+  return `${DATA_ROOT}/logs-page-${pageNum}.json`;
+}
+
 async function fetchJson(url) {
   try {
     const res = await fetch(url, { cache: 'no-cache' });
@@ -13,11 +20,11 @@ async function fetchJson(url) {
 }
 
 export async function fetchLogsPagesMeta() {
-  return fetchJson('/data/logs-pages-meta.json');
+  return fetchJson(LOGS_META_PATH);
 }
 
 export async function fetchLogsPage(pageNum) {
   if (!pageNum || pageNum < 1) return null;
-  const page = await fetchJson(`/data/logs-page-${pageNum}.json`);
+  const page = await fetchJson(logsPagePath(pageNum));
   return Array.isArray(page) ? page : null;
 }

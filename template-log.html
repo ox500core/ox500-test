@@ -26,15 +26,15 @@
   <link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}" />
   <script type="application/ld+json">{{JSONLD}}</script>
 </head>
-<body data-log-level="{{LOG_ID}}" data-core-start="{{SYSTEM_CORE_START_UTC}}">
-    <main aria-label="OX500 STATION interface">
+<body data-log-level="{{LOG_ID}}" data-core-start="{{SYSTEM_CORE_START_UTC}}" data-layout="log">
+  <main aria-label="OX500 STATION interface">
 
   <div class="vignette" aria-hidden="true"></div>
   <div class="noise" aria-hidden="true"></div>
   <div id="boot-layer">REINDEXING MEMORY...</div>
 
   <div class="station">
-    <div class="frame" >
+    <div class="frame">
       <div class="render-ok-badge">
         RENDER_OK
       </div>
@@ -114,20 +114,25 @@
         <div class="rightcol">
           <section class="panel">
             <div class="hd"><span class="tag">DIAGNOSTICS</span><span>STATE</span></div>
-            <div class="bd mono">CPU LOAD: 94% [CRITICAL]
-THERMAL: 87&deg;C [WARNING]
-NET: UNSTABLE
-AUTH: FAILED
-SECURITY: DISABLED</div>
+            <div class="bd mono" id="rightBlock1">
+              <span class="diag-line log-line naked"><span class="log-id">TEMPORAL DRIFT:</span><span class="log-tag">+0.003</span></span>
+              <span class="diag-line log-line naked"><span class="log-id">EVENT DENSITY:</span><span class="log-tag">LOW</span></span>
+              <span class="diag-line log-line naked"><span class="log-id">SIGNAL COHERENCE:</span><span class="log-tag">0.98</span></span>
+              <span class="diag-line log-line naked"><span class="log-id">ANOMALY PROBABILITY:</span><span class="log-tag">LOW</span></span>
+              <span class="diag-line log-line naked"><span class="log-id">SYSTEM PHASE:</span><span class="log-tag"><span class="diag-phase-value diag-phase-nominal">NOMINAL</span></span></span>
+              <span class="diag-line log-line naked"><span class="log-id">LAST TRANSIENT:</span><span class="log-tag">ARCHIVE LINK STABLE</span></span>
+            </div>
           </section>
 
           <section class="panel">
             <div class="hd"><span class="tag">INDEX</span><span>MAP</span></div>
-            <div class="bd mono">HOME      : AVAILABLE
-DISRUPTION : LINKED
-SERIES     : LINKED
-LOG_TEXT   : LOADED
-MODE       : OBSERVE_ONLY</div>
+            <div class="bd mono" id="rightBlock2">
+              <span class="log-line naked"><span class="log-id">HOME :</span><span class="log-tag">AVAILABLE</span></span>
+              <span class="log-line naked"><span class="log-id">DISRUPTION :</span><span class="log-tag">LINKED</span></span>
+              <span class="log-line naked"><span class="log-id">SERIES :</span><span class="log-tag">LINKED</span></span>
+              <span class="log-line naked"><span class="log-id">LOG_TEXT :</span><span class="log-tag">LOADED</span></span>
+              <span class="log-line naked"><span class="log-id">MODE :</span><span class="log-tag">OBSERVE_ONLY</span></span>
+            </div>
           </section>
 
         </div>

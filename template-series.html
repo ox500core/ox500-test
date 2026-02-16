@@ -26,8 +26,8 @@
   <link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}" />
   <script type="application/ld+json">{{JSONLD}}</script>
 </head>
-<body data-core-start="{{SYSTEM_CORE_START_UTC}}">
-    <main aria-label="OX500 STATION interface">
+<body data-core-start="{{SYSTEM_CORE_START_UTC}}" data-layout="series">
+  <main aria-label="OX500 STATION interface">
 
   <div class="vignette" aria-hidden="true"></div>
   <div class="noise" aria-hidden="true"></div>
@@ -100,9 +100,9 @@ RULE: LOG EVERYTHING</div>
 
             <div class="feed" aria-label="live feed">
               <span class="label">LIVE_FEED</span>
-              <span class="item" id="feed1">AUTH_FAIL: USER_UNKNOWN</span>
-              <span class="item" id="feed2">DISK_ERR: BLOCK 2847 UNREADABLE</span>
-              <span class="item" id="feed3">WATCHDOG: RESET IMMINENT</span>
+              <span class="item" id="feed1">ARCHIVE BUS: STABLE LINK</span>
+              <span class="item" id="feed2">NODE SYNC: NOMINAL</span>
+              <span class="item" id="feed3">CACHE VECTOR: ALIGNED</span>
             </div>
           </section>
 
@@ -119,17 +119,23 @@ RULE: LOG EVERYTHING</div>
         <div class="rightcol">
           <section class="panel">
             <div class="hd"><span class="tag">DIAGNOSTICS</span><span>STATE</span></div>
-            <div class="bd mono">CPU LOAD: 94% [CRITICAL]
-NET: UNSTABLE
-AUTH: FAILED
-SECURITY: DISABLED</div>
+            <div class="bd mono" id="rightBlock1">
+              <span class="diag-line log-line naked"><span class="log-id">TEMPORAL DRIFT:</span><span class="log-tag">+0.003</span></span>
+              <span class="diag-line log-line naked"><span class="log-id">EVENT DENSITY:</span><span class="log-tag">LOW</span></span>
+              <span class="diag-line log-line naked"><span class="log-id">SIGNAL COHERENCE:</span><span class="log-tag">0.98</span></span>
+              <span class="diag-line log-line naked"><span class="log-id">ANOMALY PROBABILITY:</span><span class="log-tag">LOW</span></span>
+              <span class="diag-line log-line naked"><span class="log-id">SYSTEM PHASE:</span><span class="log-tag"><span class="diag-phase-value diag-phase-nominal">NOMINAL</span></span></span>
+              <span class="diag-line log-line naked"><span class="log-id">LAST TRANSIENT:</span><span class="log-tag">ARCHIVE LINK STABLE</span></span>
+            </div>
           </section>
 
           <section class="panel">
             <div class="hd"><span class="tag">INDEX</span><span>MAP</span></div>
-            <div class="bd mono">NODE_LOGS : LOADED
-LINKS     : ACTIVE
-MODE      : OBSERVE_ONLY</div>
+            <div class="bd mono" id="rightBlock2">
+              <span class="log-line naked"><span class="log-id">NODE_LOGS :</span><span class="log-tag">LOADED</span></span>
+              <span class="log-line naked"><span class="log-id">LINKS :</span><span class="log-tag">ACTIVE</span></span>
+              <span class="log-line naked"><span class="log-id">MODE :</span><span class="log-tag">OBSERVE_ONLY</span></span>
+            </div>
           </section>
 
         </div>

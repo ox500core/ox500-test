@@ -5,6 +5,8 @@
 import { bus } from '../core/event-bus.js';
 import { utils } from '../core/utils.js';
 
+const TICK_INTERVAL_MS = 1000;
+
 // === INIT ===
 
 export function initTick() {
@@ -22,7 +24,7 @@ export function initTick() {
   function startTick() {
     if (tickTimer) return;
     tick();
-    tickTimer = setInterval(tick, 1000);
+    tickTimer = setInterval(tick, TICK_INTERVAL_MS);
   }
 
   function stopTick() {

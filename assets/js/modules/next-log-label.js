@@ -1,26 +1,28 @@
-(function(){
-  const el = document.getElementById("nextLogCountdown");
-  if (!el) return;
+const ONE_DAY_MS = 86400000;
+const UNKNOWN_LABEL = 'UNKNOWN';
 
-  const raw = el.dataset.nextLog;
-  if (!raw || raw === "UNKNOWN") {
-    el.textContent = "UNKNOWN";
-    return;
+function normalizeDateToLocalMidnight(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function resolveCountdownLabel(rawNextLogDate) {
+  if (!rawNextLogDate || rawNextLogDate === UNKNOWN_LABEL) {
+    return UNKNOWN_LABEL;
   }
 
-  const target = new Date(raw);
+  const target = new Date(rawNextLogDate);
   const now = new Date();
+  const todayLocal = normalizeDateToLocalMidnight(now);
+  const targetLocal = normalizeDateToLocalMidnight(target);
+  const diffDays = Math.round((targetLocal - todayLocal) / ONE_DAY_MS);
 
-  const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const targetLocal = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+  if (diffDays <= 0) return 'TODAY';
+  if (diffDays === 1) return '1 DAY';
+  return `${diffDays} DAYS`;
+}
 
-  const diffDays = Math.round((targetLocal - todayLocal) / 86400000);
-
-  let label;
-
-  if (diffDays <= 0) label = "TODAY";
-  else if (diffDays === 1) label = "1 DAY";
-  else label = diffDays + " DAYS";
-
-  el.textContent = label;
-})();
+export function initNextLogLabel() {
+  const element = document.getElementById('nextLogCountdown');
+  if (!element) return;
+  element.textContent = resolveCountdownLabel(element.dataset.nextLog);
+}

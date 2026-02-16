@@ -3,20 +3,31 @@
 
 const listeners = new Map();
 
+function ensureEventSet(event) {
+  if (!listeners.has(event)) listeners.set(event, new Set());
+  return listeners.get(event);
+}
+
+function getEventSet(event) {
+  return listeners.get(event) || null;
+}
+
 export const bus = {
   on(event, handler) {
-    if (!listeners.has(event)) listeners.set(event, new Set());
-    listeners.get(event).add(handler);
+    ensureEventSet(event).add(handler);
   },
 
   off(event, handler) {
-    if (!listeners.has(event)) return;
-    listeners.get(event).delete(handler);
+    const eventSet = getEventSet(event);
+    if (!eventSet) return;
+    eventSet.delete(handler);
+    if (!eventSet.size) listeners.delete(event);
   },
 
   emit(event, payload) {
-    if (!listeners.has(event)) return;
-    for (const handler of listeners.get(event)) {
+    const eventSet = getEventSet(event);
+    if (!eventSet || !eventSet.size) return;
+    for (const handler of Array.from(eventSet)) {
       try { handler(payload); }
       catch (err) { console.error('OX500 BUS ERROR', event, err); }
     }

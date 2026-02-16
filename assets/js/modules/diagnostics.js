@@ -7,7 +7,23 @@ import { bus } from '../core/event-bus.js';
 // === CONFIG ===
 
 const PHASES = { NOMINAL: 'NOMINAL', UNSTABLE: 'UNSTABLE', INCIDENT: 'INCIDENT' };
-const PHASE_TRANSITION_COOLDOWN_MS = 7000;
+const PHASE_TRANSITION_COOLDOWN_MS = 4200;
+const RECENT_EVENT_WINDOW_MS = 60000;
+const PRESSURE_THRESHOLDS = {
+  NOMINAL_TO_UNSTABLE: 0.36,
+  UNSTABLE_TO_INCIDENT: 0.5,
+  UNSTABLE_TO_NOMINAL: 0.24,
+  INCIDENT_TO_UNSTABLE: 0.4,
+};
+const DENSITY_LABEL_THRESHOLDS = { LOW: 0.24, STABLE: 0.62 };
+const ANOMALY_LABEL_THRESHOLDS = { LOW: 0.04, RISING: 0.1 };
+const COHERENCE_THRESHOLDS = { LOCKED: 0.97, NOMINAL: 0.92, DEGRADED: 0.88 };
+const PHASE_CLASS_MAP = {
+  [PHASES.NOMINAL]: 'diag-phase-nominal',
+  [PHASES.UNSTABLE]: 'diag-phase-unstable',
+  [PHASES.INCIDENT]: 'diag-phase-incident',
+};
+const DIAG_PHASE_CLASSES = Object.values(PHASE_CLASS_MAP);
 
 // === INIT ===
 
@@ -17,16 +33,18 @@ export function initDiagnostics() {
 
   // === STATE ===
   let phase = PHASES.NOMINAL;
-  let phaseChangedAt = Date.now();
+  let phaseChangedAt = Date.now() - PHASE_TRANSITION_COOLDOWN_MS;
   let temporalDrift = 0.003;
   let coherence = 0.982;
   let anomaly = 0.018;
-  let pressure = 0.16;
+  let pressure = 0.34;
+  let ambientStress = 0.5;
   let pulseTimer = null;
 
   const recentEvents = [];
   let lastEventAt = Date.now();
   let lastSemantic = 'ARCHIVE LINK STABLE';
+  const view = initDiagnosticsView(panel);
 
   // === PRNG (deterministic per session) ===
   const sessionSeed =
@@ -52,7 +70,7 @@ export function initDiagnostics() {
   }
 
   function pruneEvents(now) {
-    const minTs = now - 60000;
+    const minTs = now - RECENT_EVENT_WINDOW_MS;
     while (recentEvents.length && recentEvents[0].t < minTs) recentEvents.shift();
   }
 
@@ -65,26 +83,35 @@ export function initDiagnostics() {
   // === LABELS ===
 
   function densityLabel(v) {
-    if (v < 0.24) return 'LOW';
-    if (v < 0.62) return 'STABLE';
+    if (v < DENSITY_LABEL_THRESHOLDS.LOW) return 'LOW';
+    if (v < DENSITY_LABEL_THRESHOLDS.STABLE) return 'STABLE';
     return 'HIGH';
   }
 
   function anomalyLabel(v) {
-    if (v < 0.04) return 'LOW';
-    if (v < 0.1) return 'RISING';
+    if (v < ANOMALY_LABEL_THRESHOLDS.LOW) return 'LOW';
+    if (v < ANOMALY_LABEL_THRESHOLDS.RISING) return 'RISING';
     return 'HIGH';
   }
 
   function coherenceTag(v) {
-    if (v > 0.97) return 'LOCKED';
-    if (v > 0.92) return 'NOMINAL';
-    if (v > 0.88) return 'DEGRADED';
+    if (v > COHERENCE_THRESHOLDS.LOCKED) return 'LOCKED';
+    if (v > COHERENCE_THRESHOLDS.NOMINAL) return 'NOMINAL';
+    if (v > COHERENCE_THRESHOLDS.DEGRADED) return 'DEGRADED';
     return 'UNSTABLE';
   }
 
   function fmtDrift(v) {
     return `${v >= 0 ? '+' : '-'}${Math.abs(v).toFixed(3)}`;
+  }
+
+  function emitDiagnosticsUpdate(density) {
+    bus.emit('diagnostics:update', {
+      phase,
+      temporalDrift,
+      anomaly,
+      eventDensity: Number.isFinite(density) ? density : eventDensity(),
+    });
   }
 
   // === PHASE TRANSITIONS ===
@@ -111,12 +138,12 @@ export function initDiagnostics() {
   function updatePhase(now) {
     if (now - phaseChangedAt < PHASE_TRANSITION_COOLDOWN_MS) return;
 
-    if (phase === PHASES.NOMINAL && pressure >= 0.46) {
+    if (phase === PHASES.NOMINAL && pressure >= PRESSURE_THRESHOLDS.NOMINAL_TO_UNSTABLE) {
       transition(PHASES.UNSTABLE, now);
     } else if (phase === PHASES.UNSTABLE) {
-      if (pressure >= 0.74) transition(PHASES.INCIDENT, now);
-      else if (pressure <= 0.28) transition(PHASES.NOMINAL, now);
-    } else if (phase === PHASES.INCIDENT && pressure <= 0.56) {
+      if (pressure >= PRESSURE_THRESHOLDS.UNSTABLE_TO_INCIDENT) transition(PHASES.INCIDENT, now);
+      else if (pressure <= PRESSURE_THRESHOLDS.UNSTABLE_TO_NOMINAL) transition(PHASES.NOMINAL, now);
+    } else if (phase === PHASES.INCIDENT && pressure <= PRESSURE_THRESHOLDS.INCIDENT_TO_UNSTABLE) {
       transition(PHASES.UNSTABLE, now);
     }
   }
@@ -124,19 +151,17 @@ export function initDiagnostics() {
   // === RENDER ===
 
   function render(density) {
-    const phaseClass =
-      phase === PHASES.UNSTABLE ? 'diag-phase-unstable' :
-      phase === PHASES.INCIDENT ? 'diag-phase-incident' :
-      'diag-phase-nominal';
+    if (!view.isReady) return;
 
-    panel.innerHTML = [
-      `<span class="diag-line">TEMPORAL DRIFT: ${fmtDrift(temporalDrift)}</span>`,
-      `<span class="diag-line">EVENT DENSITY: ${densityLabel(density)}</span>`,
-      `<span class="diag-line">SIGNAL COHERENCE: ${coherence.toFixed(2)}</span>`,
-      `<span class="diag-line">ANOMALY PROBABILITY: ${anomalyLabel(anomaly)}</span>`,
-      `<span class="diag-line">SYSTEM PHASE: <span class="diag-phase-value ${phaseClass}">${phase}</span></span>`,
-      `<span class="diag-line">LAST TRANSIENT: ${lastSemantic}</span>`,
-    ].join('');
+    view.drift.textContent = fmtDrift(temporalDrift);
+    view.density.textContent = densityLabel(density);
+    view.coherence.textContent = coherence.toFixed(2);
+    view.anomaly.textContent = anomalyLabel(anomaly);
+    view.phase.textContent = phase;
+    view.transient.textContent = lastSemantic;
+
+    view.phase.classList.remove(...DIAG_PHASE_CLASSES);
+    view.phase.classList.add(PHASE_CLASS_MAP[phase] || PHASE_CLASS_MAP[PHASES.NOMINAL]);
   }
 
   // === BUS LISTENERS ===
@@ -177,8 +202,25 @@ export function initDiagnostics() {
     const silenceSec = (now - lastEventAt) / 1000;
     const silencePressure = silenceSec > 14 ? clamp((silenceSec - 14) / 36, 0, 1) : 0;
 
+    // Ambient load wave keeps the system alive even without heavy user interaction.
+    const waveA = Math.sin(now / 26000);
+    const waveB = Math.sin(now / 61000 + 1.3);
+    const ambientTarget = clamp(0.52 + (waveA * 0.24) + (waveB * 0.16), 0.2, 0.86);
+    ambientStress = clamp(
+      ambientStress * 0.82 + ambientTarget * 0.18 + (rand() - 0.5) * 0.02,
+      0.18,
+      0.86,
+    );
+    const ambientPull = (ambientStress - pressure) * 0.14;
+
     pressure = clamp(
-      pressure + density * 0.01 + silencePressure * 0.012 - 0.006 + (rand() - 0.5) * 0.002,
+      pressure * 0.64 +
+      ambientPull +
+      ambientStress * 0.24 +
+      density * 0.05 +
+      silencePressure * 0.03 -
+      0.005 +
+      (rand() - 0.5) * 0.01,
       0,
       1,
     );
@@ -192,10 +234,39 @@ export function initDiagnostics() {
 
     updatePhase(now);
     render(density);
+    emitDiagnosticsUpdate(density);
   });
 
   // === INITIAL RENDER ===
   applyPhaseVisual(false);
   bus.emit('system:phase', { phase });
-  render(eventDensity());
+  const initialDensity = eventDensity();
+  render(initialDensity);
+  emitDiagnosticsUpdate(initialDensity);
+}
+
+function initDiagnosticsView(panel) {
+  panel.innerHTML = [
+    '<span class="diag-line log-line naked"><span class="log-id">TEMPORAL DRIFT:</span><span class="log-tag" data-diag-value="drift">+0.000</span></span>',
+    '<span class="diag-line log-line naked"><span class="log-id">EVENT DENSITY:</span><span class="log-tag" data-diag-value="density">LOW</span></span>',
+    '<span class="diag-line log-line naked"><span class="log-id">SIGNAL COHERENCE:</span><span class="log-tag" data-diag-value="coherence">0.98</span></span>',
+    '<span class="diag-line log-line naked"><span class="log-id">ANOMALY PROBABILITY:</span><span class="log-tag" data-diag-value="anomaly">LOW</span></span>',
+    '<span class="diag-line log-line naked"><span class="log-id">SYSTEM PHASE:</span><span class="log-tag"><span class="diag-phase-value diag-phase-nominal" data-diag-value="phase">NOMINAL</span></span></span>',
+    '<span class="diag-line log-line naked"><span class="log-id">LAST TRANSIENT:</span><span class="log-tag" data-diag-value="transient">ARCHIVE LINK STABLE</span></span>',
+  ].join('');
+
+  const refs = {
+    drift: panel.querySelector('[data-diag-value="drift"]'),
+    density: panel.querySelector('[data-diag-value="density"]'),
+    coherence: panel.querySelector('[data-diag-value="coherence"]'),
+    anomaly: panel.querySelector('[data-diag-value="anomaly"]'),
+    phase: panel.querySelector('[data-diag-value="phase"]'),
+    transient: panel.querySelector('[data-diag-value="transient"]'),
+  };
+  const isReady = Object.values(refs).every(Boolean);
+
+  return {
+    ...refs,
+    isReady,
+  };
 }

@@ -3,19 +3,24 @@
 
 import { bus } from '../core/event-bus.js';
 
+const BOOT_FADE_DELAY_MS = 400;
+const BOOT_REMOVE_DELAY_MS = 300;
+const TOPBAR_SYS_PILL_SELECTOR = '.topbar .right .pill';
+const TOPBAR_TAB_SELECTOR = '.btn[data-tab]';
+
 // === INIT ===
 
 export function initBoot() {
-  _scheduleBootLayer();
-  _setNextLogCountdown();
-  _updateSysVersionPill();
-  _lockAvailableFromBuild();
-  _initTabButtons();
+  scheduleBootLayer();
+  setNextLogCountdown();
+  updateSysVersionPill();
+  lockAvailableFromBuild();
+  initTabButtons();
 }
 
 // === PRIVATE ===
 
-function _scheduleBootLayer() {
+function scheduleBootLayer() {
   window.addEventListener('load', () => {
     setTimeout(() => {
       const bootLayer = document.getElementById('boot-layer');
@@ -24,12 +29,12 @@ function _scheduleBootLayer() {
       setTimeout(() => {
         bootLayer.remove();
         bus.emit('boot:complete');
-      }, 300);
-    }, 400);
+      }, BOOT_REMOVE_DELAY_MS);
+    }, BOOT_FADE_DELAY_MS);
   });
 }
 
-function _setNextLogCountdown() {
+function setNextLogCountdown() {
   const el = document.getElementById('nextLogCountdown');
   if (!el) return;
   const current = String(el.textContent || '').trim();
@@ -38,34 +43,44 @@ function _setNextLogCountdown() {
   el.textContent = window.OX500_NEXT_LOG_STATIC;
 }
 
-function _updateSysVersionPill() {
+function readInlineSysVersion() {
   const sysVerEl = document.getElementById('sysVer');
-  const inlineSysVer = sysVerEl ? String(sysVerEl.textContent || '').trim() : '';
-  const bodySysVer = document.body?.dataset
+  return sysVerEl ? String(sysVerEl.textContent || '').trim() : '';
+}
+
+function readBodySysVersion() {
+  return document.body?.dataset
     ? String(document.body.dataset.sysVer || '').trim()
     : '';
-  const sysVer = inlineSysVer || bodySysVer;
+}
+
+function updateSysVersionPill() {
+  const sysVerEl = document.getElementById('sysVer');
+  const sysVer = readInlineSysVersion() || readBodySysVersion();
   if (!sysVer) return;
 
   if (sysVerEl) {
     sysVerEl.textContent = sysVer;
     return;
   }
-  const sysPill = document.querySelector('.topbar .right .pill');
+  const sysPill = document.querySelector(TOPBAR_SYS_PILL_SELECTOR);
   if (sysPill && /^SYS\s+/i.test((sysPill.textContent || '').trim())) {
     sysPill.textContent = `SYS ${sysVer}`;
   }
 }
 
-function _lockAvailableFromBuild() {
+function lockAvailableFromBuild() {
   const availEl = document.getElementById('avail');
   if (!availEl) return;
   const buildValue = (availEl.textContent || '').trim();
   if (!buildValue) return;
+  availEl.dataset.buildValue = buildValue;
 
   const enforce = () => {
-    if ((availEl.textContent || '').trim() !== buildValue) {
-      availEl.textContent = buildValue;
+    const dynamicValue = String(availEl.dataset.dynamicValue || '').trim();
+    const targetValue = dynamicValue || buildValue;
+    if ((availEl.textContent || '').trim() !== targetValue) {
+      availEl.textContent = targetValue;
     }
   };
 
@@ -74,10 +89,10 @@ function _lockAvailableFromBuild() {
   observer.observe(availEl, { childList: true, characterData: true, subtree: true });
 }
 
-function _initTabButtons() {
-  document.querySelectorAll('.btn[data-tab]').forEach((btn) => {
+function initTabButtons() {
+  document.querySelectorAll(TOPBAR_TAB_SELECTOR).forEach((btn) => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.btn[data-tab]').forEach((b) => b.classList.remove('primary'));
+      document.querySelectorAll(TOPBAR_TAB_SELECTOR).forEach((b) => b.classList.remove('primary'));
       btn.classList.add('primary');
     }, { passive: true });
   });

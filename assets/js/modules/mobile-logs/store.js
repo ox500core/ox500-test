@@ -31,6 +31,20 @@ const state = {
   fromDisruption: false,
 };
 
+function numericId(value) {
+  return Number(utils.normalizeId(value));
+}
+
+function getLoadedPageBoundary(comparator) {
+  if (!state.loadedPages.size) return 0;
+  return comparator(...state.loadedPages);
+}
+
+function resolveStampId(stampEl) {
+  const stampMatch = (stampEl?.textContent || '').match(/(?:\bLOG\b\s+)?(\d+)/i);
+  return utils.normalizeId(stampMatch ? stampMatch[1] : '');
+}
+
 // === READ ===
 
 export function getState() { return state; }
@@ -47,17 +61,16 @@ export function isFromDisruption() { return state.fromDisruption; }
 export function setFromDisruption(v) { state.fromDisruption = Boolean(v); }
 
 export function maxLoadedPage() {
-  return state.loadedPages.size ? Math.max(...state.loadedPages) : 0;
+  return getLoadedPageBoundary(Math.max);
 }
 
 export function minLoadedPage() {
-  return state.loadedPages.size ? Math.min(...state.loadedPages) : 0;
+  return getLoadedPageBoundary(Math.min);
 }
 
 export function resolveCurrentIndex(stampEl) {
   const bodyId = utils.normalizeId(document.body?.dataset?.logLevel);
-  const stampMatch = (stampEl?.textContent || '').match(/(?:\bLOG\b\s+)?(\d+)/i);
-  const stampId = utils.normalizeId(stampMatch ? stampMatch[1] : '');
+  const stampId = resolveStampId(stampEl);
   const currentId = bodyId || stampId;
   if (!currentId) return state.orderedIds.length - 1;
   const idx = state.orderedIds.indexOf(currentId);
@@ -80,7 +93,7 @@ function rebuildFromLoadedPages() {
     });
   });
 
-  const sorted = Array.from(uniqueById.entries()).sort((a, b) => Number(a[0]) - Number(b[0]));
+  const sorted = Array.from(uniqueById.entries()).sort((a, b) => numericId(a[0]) - numericId(b[0]));
   state.logs = sorted.map(([, entry]) => entry);
   state.logsById = new Map(sorted);
   state.orderedIds = sorted.map(([id]) => id);
