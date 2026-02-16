@@ -23,16 +23,20 @@
   <meta name="twitter:description" content="System interface. Archive access is conditional. The logs remain." />
   <meta name="twitter:image" content="{{OG_IMAGE}}" />
 
-  <link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}" />
+<link rel="preload" href="/assets/css/style.css?v={{ASSET_VERSION}}" as="style">
+<link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}">
+
   <script type="application/ld+json">{{DISRUPTION_SERIES_JSONLD}}</script>
 </head>
 <body data-log-level="{{LATEST_LOG_ID}}" data-core-start="{{SYSTEM_CORE_START_UTC}}" data-layout="home">
+    <main aria-label="OX500 STATION interface">
+
   <div class="vignette" aria-hidden="true"></div>
   <div class="noise" aria-hidden="true"></div>
   <div id="boot-layer">REINDEXING MEMORY...</div>
 
   <div class="station">
-    <div class="frame" aria-label="OX500 STATION interface">
+    <div class="frame">
       <div class="render-ok-badge">
         RENDER_OK
       </div>
@@ -218,6 +222,8 @@ SOURCE_REPO : <a href="{{GITHUB}}">GITHUB</a></div>
     })();
   </script>
   <script src="/assets/js/bundle.js?v={{ASSET_VERSION}}" defer></script>
+</main>
+
 </body>
 </html>
 
