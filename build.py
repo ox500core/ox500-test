@@ -613,29 +613,19 @@ def jsonld_log_creative_work(base_url: str, url_path: str, log_id: str) -> str:
     }
     return json.dumps(data, ensure_ascii=False, indent=2)
 
-
 # =========================================================
 # BUILD STAGES
 # =========================================================
 
 def _find_esbuild() -> str | None:
-    """Find the esbuild executable, handling Windows (.cmd) and Unix variants.
-
-    Search order:
-      1. npx esbuild  (works everywhere, no global install needed)
-      2. esbuild / esbuild.cmd  (global npm install)
-      3. node_modules/.bin/esbuild  (local npm install)
-    Returns the executable string to use, or None if not found.
-    """
+    """Find the esbuild executable, handling Windows (.cmd) and Unix variants."""
     import shutil
 
-    # On Windows npm installs create .cmd wrappers
     candidates = ["esbuild", "esbuild.cmd"] if sys.platform == "win32" else ["esbuild"]
     for exe in candidates:
         if shutil.which(exe):
             return exe
 
-    # Local node_modules fallback (if someone ran `npm install esbuild`)
     local_suffix = "esbuild.cmd" if sys.platform == "win32" else "esbuild"
     local = ROOT / "node_modules" / ".bin" / local_suffix
     if local.exists():
@@ -652,17 +642,11 @@ def stage_minify_css() -> None:
         print(f"SKIP CSS minify — not found: {css_src}")
         return
 
-    esbuild_exe = _find_esbuild()
-    if not esbuild_exe:
-        print("SKIP CSS minify — esbuild not found")
-        return
-
-    # stage_prepare_output() already copied style.css — overwrite with minified version
     css_dst.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         result = subprocess.run(
-            [esbuild_exe, str(css_src), "--minify", f"--outfile={css_dst}"],
+            ["npx", "esbuild", str(css_src), "--minify", f"--outfile={css_dst}"],
             check=True,
             capture_output=True,
             text=True,
@@ -677,40 +661,24 @@ def stage_minify_css() -> None:
 
 
 def stage_bundle_js() -> None:
-    """Bundle assets/js/main.js → dist/assets/js/bundle.js via esbuild.
-
-    esbuild must be available. Install options:
-      npm install -g esbuild          (global, recommended)
-      npm install --save-dev esbuild  (local, in this project folder)
-    Works on Windows, macOS and Linux — detects .cmd wrapper automatically.
-    """
+    """Bundle assets/js/main.js → dist/assets/js/bundle.js via esbuild."""
     if not JS_ENTRY.exists():
         print(f"SKIP JS bundle — entry not found: {JS_ENTRY}")
         return
 
-    esbuild_exe = _find_esbuild()
-    if not esbuild_exe:
-        print(
-            "\nERROR: esbuild not found.\n"
-            "Install it with one of:\n"
-            "  npm install -g esbuild          (global — then re-run build.py)\n"
-            "  npm install --save-dev esbuild  (local in project folder)\n"
-            "\nOn Windows make sure Node.js is on PATH and restart your terminal after install.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
     JS_BUNDLE_DIST.parent.mkdir(parents=True, exist_ok=True)
 
     cmd = [
-        esbuild_exe,
+        "npx",
+        "esbuild",
         str(JS_ENTRY),
         "--bundle",
         f"--outfile={JS_BUNDLE_DIST}",
         f"--target={JS_TARGET}",
-        "--format=iife",    # safe IIFE wrapper, no global leakage
+        "--format=iife",
         "--platform=browser",
     ]
+
     if JS_MINIFY:
         cmd.append("--minify")
 
@@ -721,7 +689,6 @@ def stage_bundle_js() -> None:
             capture_output=True,
             text=True,
             cwd=ROOT,
-            # On Windows, shell=True is needed when exe is a .cmd script
             shell=(sys.platform == "win32"),
         )
         size_kb = JS_BUNDLE_DIST.stat().st_size / 1024
