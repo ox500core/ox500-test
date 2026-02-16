@@ -703,27 +703,6 @@ def stage_bundle_js() -> None:
         sys.exit(1)
 
 
-    if JS_MINIFY:
-        cmd.append("--minify")
-
-    try:
-        result = subprocess.run(
-            cmd,
-            check=True,
-            capture_output=True,
-            text=True,
-            cwd=ROOT,
-            shell=(sys.platform == "win32"),
-        )
-        size_kb = JS_BUNDLE_DIST.stat().st_size / 1024
-        print(f"JS bundle OK — {JS_BUNDLE_REL.as_posix()} ({size_kb:.1f} kB)")
-        if result.stderr:
-            print(result.stderr.strip())
-    except subprocess.CalledProcessError as exc:
-        print(f"ERROR: esbuild failed:\n{exc.stderr}", file=sys.stderr)
-        sys.exit(1)
-
-
 def stage_prepare_output() -> None:
     if CLEAN_DIST_ON_BUILD and DIST.exists():
         shutil.rmtree(DIST)
