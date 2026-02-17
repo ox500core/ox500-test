@@ -1085,6 +1085,16 @@ body::after{
   white-space:nowrap;
 }
 .bottombar .right b{color:var(--amber);}
+#footerRight{min-width:24ch;}
+#avail,
+#system-uptime{
+  display:inline-block;
+  text-align:right;
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1;
+}
+#avail{min-width:4ch;}
+#system-uptime{min-width:12ch;}
 
 .glitch-invert{filter:invert(1) hue-rotate(180deg);}
 .glitch-shift{transform:translateX(2px);}
@@ -1176,6 +1186,12 @@ body::after{
   font-size:inherit;
   line-height:inherit;
   letter-spacing:inherit;
+}
+a.log-line.naked,
+a.log-link-text.naked{
+  min-height:24px;
+  padding-top:2px;
+  padding-bottom:2px;
 }
 .log-line:hover{
   border-color:rgba(var(--cyan-rgb),.28);
