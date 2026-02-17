@@ -100,9 +100,7 @@ FALLBACK_DISRUPTION_TEMPLATE = """<!DOCTYPE html>
   <meta name="twitter:description" content="{{OG_DESC}}" />
   <meta name="twitter:image" content="{{OG_IMAGE}}" />
 
-  <link rel="preload" href="/assets/css/style.css?v={{ASSET_VERSION}}" as="style" />
-  <link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}" media="print" onload="this.media='all'" />
-  <noscript><link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}" /></noscript>
+  <link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}" />
 
   <script type="application/ld+json">
   {{JSONLD}}
@@ -225,6 +223,30 @@ def first_line(text: str, max_chars: int = 150) -> str:
     if len(line) <= max_chars:
         return line
     return line[:max_chars].rstrip()
+
+
+def cleanup_disruption_text(raw_text: str) -> str:
+    text = str(raw_text or "").strip()
+    text = re.sub(r"^DISRUPTION(?:_SERIES)?\s*//\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"^SERIES\s*//\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"^DISRUPTION\s*/\s*", "", text, flags=re.IGNORECASE)
+    return text.strip()
+
+
+def derive_mobile_disruption_title(log: dict) -> str:
+    clean = str(log.get("disruption_title_clean", "")).strip()
+    if clean:
+        return clean
+    raw_series = str(log.get("series") or log.get("disruption") or "").strip()
+    raw_title = re.sub(r"^LOG\s*\d+\s*//\s*", "", str(log.get("title", "")).strip(), flags=re.IGNORECASE)
+    title = cleanup_disruption_text(raw_series) or raw_title
+    return title or "UNTITLED"
+
+
+def derive_mobile_log_entry_title(log: dict) -> str:
+    title = re.sub(r"^LOG\s*\d+\s*//\s*", "", str(log.get("title", "")).strip(), flags=re.IGNORECASE)
+    title = re.sub(r"^DISRUPTION(?:_SERIES)?\s*//\s*", "", title, flags=re.IGNORECASE)
+    return title.strip() or "UNTITLED"
 
 
 def read_text(path: Path) -> str:
@@ -1036,6 +1058,8 @@ def compose_home_view_models(
     latest_log_id = ""
     latest_log_date = ""
     latest_log_text = ""
+    latest_log_disruption_title = ""
+    latest_log_entry_title = ""
     latest_log_url = ""
     latest_log_prev_url = ""
     latest_log_prev_attrs = 'aria-disabled="true" tabindex="-1"'
@@ -1045,6 +1069,8 @@ def compose_home_view_models(
         latest_log_id = esc(latest_log["id"])
         latest_log_date = esc(latest_log.get("date", ""))
         latest_log_text = format_log_text(latest_log.get("text", ""))
+        latest_log_disruption_title = esc(derive_mobile_disruption_title(latest_log))
+        latest_log_entry_title = esc(derive_mobile_log_entry_title(latest_log))
         latest_log_url = url(rel(latest_log))
         older_log = logs_sorted[1] if len(logs_sorted) > 1 else None
         if older_log:
@@ -1143,6 +1169,8 @@ def compose_home_view_models(
         "latest_log_id": latest_log_id,
         "latest_log_date": latest_log_date,
         "latest_log_text": latest_log_text,
+        "latest_log_disruption_title": latest_log_disruption_title,
+        "latest_log_entry_title": latest_log_entry_title,
         "latest_log_url": latest_log_url,
         "latest_log_prev_url": latest_log_prev_url,
         "latest_log_prev_attrs": latest_log_prev_attrs,
@@ -1237,6 +1265,8 @@ def stage_render_homepage(t_index: str, ctx: SiteContext, home_vm: dict, next_lo
             "LATEST_LOG_ID": home_vm["latest_log_id"],
             "LATEST_LOG_DATE": home_vm["latest_log_date"],
             "LATEST_LOG_TEXT": home_vm["latest_log_text"],
+            "LATEST_LOG_DISRUPTION_TITLE": home_vm["latest_log_disruption_title"],
+            "LATEST_LOG_ENTRY_TITLE": home_vm["latest_log_entry_title"],
             "LATEST_LOG_URL": home_vm["latest_log_url"],
             "LATEST_LOG_PREV_URL": home_vm["latest_log_prev_url"],
             "LATEST_LOG_PREV_ATTRS": home_vm["latest_log_prev_attrs"],

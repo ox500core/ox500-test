@@ -539,7 +539,7 @@ body::after{
   color:rgba(var(--cyan-rgb),.92);
   font:700 11px/1 var(--ox-font-mono);
   letter-spacing:.18em;
-  transition:color .12s ease,text-shadow .12s ease,transform .12s ease;
+  transition:text-shadow .12s ease,transform .12s ease;
 }
 .active-view-panel .panel-btn:hover{
   color:rgba(236,249,255,.98);
@@ -558,7 +558,7 @@ body::after{
   color:rgba(var(--cyan-rgb),.92);
   font:700 11px/1 var(--ox-font-mono);
   letter-spacing:.18em;
-  transition:color .12s ease,text-shadow .12s ease,transform .12s ease;
+  transition:text-shadow .12s ease,transform .12s ease;
 }
 :where(body[data-layout="home"]) .home-hero .controls .btn.bracket:hover{
   color:rgba(236,249,255,.98);
@@ -589,7 +589,7 @@ body::after{
   transition:text-shadow .12s ease;
 }
 .active-view-panel .hd .active-view-toggle-btn .mode-label{
-  transition:color .12s ease,text-shadow .12s ease;
+  transition:text-shadow .12s ease;
   font-weight:500;
 }
 .active-view-panel .hd .active-view-toggle-btn .mode-label-live{
@@ -1223,7 +1223,7 @@ body::after{
   text-decoration:none;
   color:inherit;
   opacity:.78;
-  transition:opacity .12s ease,color .12s ease,text-shadow .12s ease;
+  transition:opacity .12s ease,text-shadow .12s ease;
 }
 .recent-logs :is(.log-line.naked,.log-link-text.naked):hover{
   opacity:1;
@@ -1414,7 +1414,7 @@ body::after{
   outline:none;
   position:relative;
   transform:none;
-  transition:color .12s ease,border-color .12s ease,background-color .12s ease,box-shadow .12s ease;
+  transition:background-color .12s ease,box-shadow .12s ease;
 }
 :where(body[data-layout="home"]) #activeViewPanel .mobile-log-nav-btn::before,
 :where(body[data-layout="home"]) #activeViewPanel .mobile-log-nav-btn::after{
@@ -1573,7 +1573,7 @@ a:focus-visible{
   letter-spacing:.16em;
   font-weight:700;
   line-height:1.35;
-  transition:background-color .12s ease,border-color .12s ease,box-shadow .12s ease,color .12s ease;
+  transition:background-color .12s ease,box-shadow .12s ease;
 }
 :where(body[data-layout="home"]) #activeViewPanel .bd .mobile-active-log-title .mobile-active-log-prefix{color:rgba(var(--amber-rgb),.92);}
 :where(body[data-layout="home"]) #activeViewPanel .bd .mobile-active-log-title .mobile-active-log-name{color:rgba(var(--cyan-rgb),.94);font-weight:700;}
@@ -1583,7 +1583,7 @@ a:focus-visible{
   color:rgba(var(--cyan-rgb),.94);
   font-weight:700;
   text-decoration:none;
-  transition:color .12s ease,text-shadow .12s ease;
+  transition:text-shadow .12s ease;
 }
 :where(body[data-layout="home"]) #activeViewPanel .bd .mobile-active-log-title .mobile-active-log-link:hover{text-decoration:underline;}
 :where(body[data-layout="home"]) #activeViewPanel .bd .mobile-active-log-title .mobile-active-log-link:focus-visible{text-decoration:underline;outline:none;text-shadow:0 0 8px rgba(var(--cyan-rgb),.24);}
@@ -2054,4 +2054,3 @@ a:focus-visible{
     max-height:none !important;
   }
 }
-

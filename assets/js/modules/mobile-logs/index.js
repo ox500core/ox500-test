@@ -22,6 +22,9 @@ import {
   renderEntry,
   renderDisruptionList,
   setViewMode,
+  setLogStamp,
+  markCurrentRecentLog,
+  markCurrentDisruptionNode,
   disruptionKey,
   disruptionSlugFromHref,
   logIdFromHref,
@@ -242,6 +245,21 @@ export function initMobileLogs() {
     return newestByKey.get(latestKey)?.entry || null;
   }
 
+  function hydrateInitialEntryState(entry) {
+    if (!entry || !textEl || !stampEl) return false;
+    const entryId = utils.normalizeId(entry?.id || '');
+    const initialId = utils.normalizeId(textEl.dataset.initialLogId || '');
+    if (!entryId || !initialId || entryId !== initialId) return false;
+
+    setViewMode(els, 'entry');
+    setLogStamp(stampEl, entry?.id || '----', entry?.date || '----');
+    setCurrentEntryId(entryId);
+    markCurrentRecentLog(recentLogsRoot, entryId);
+    markCurrentDisruptionNode(entry);
+    if (document.body) document.body.dataset.logLevel = entryId;
+    return true;
+  }
+
   function renderOutputView() {
     const youtubeHref = document.querySelector('#rightBlock2 a[href][data-tab="youtube"], #rightBlock2 a[href*="youtube"]')?.getAttribute('href')
       || document.querySelector('#rightBlock2 a[href*="youtu"]')?.getAttribute('href')
@@ -433,9 +451,13 @@ export function initMobileLogs() {
     if (!isLoaded()) return;
     const currentId = getOrderedIds()[resolveCurrentIndex(stampEl)];
     if (currentId) {
+      const entry = getLogsById().get(currentId);
+      if (!entry) return;
       setFromSearch(false);
       setFromDisruption(false);
-      renderEntry(els, mobileQuery, getLogsById().get(currentId), stampEl, recentLogsRoot, updateControls);
+      if (!hydrateInitialEntryState(entry)) {
+        renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, updateControls);
+      }
     }
     updateControls();
   });
