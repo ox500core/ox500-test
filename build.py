@@ -281,6 +281,16 @@ def write_text(path: Path, content: str) -> None:
         f.write(content)
 
 
+def load_home_inline_css() -> str:
+    """
+    Inline CSS for homepage to avoid a render-blocking CSS request on first paint.
+    """
+    css_path = ASSETS_CSS_DIST if ASSETS_CSS_DIST.exists() else (ASSETS_SRC / "css" / "style.css")
+    css = read_text(css_path)
+    css = re.sub(r"^\s*@charset\s+['\"][^'\"]+['\"]\s*;\s*", "", css, flags=re.IGNORECASE)
+    return css.replace("</style", "<\\/style")
+
+
 def copy_file_if_changed(src: Path, dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     if CLEAN_DIST_ON_BUILD:
@@ -1240,6 +1250,7 @@ def stage_export_json_data(logs_sorted: list, disruptions_nav_payload: list, rel
 def stage_render_homepage(t_index: str, ctx: SiteContext, home_vm: dict, next_log_utc: str) -> None:
     sensor_label = "SENSOR DRIFT VECTOR"
     sensor_code = derive_sensor_code(ctx.asset_version)
+    inline_css_home = load_home_inline_css()
 
     index_html = render(
         t_index,
@@ -1273,6 +1284,7 @@ def stage_render_homepage(t_index: str, ctx: SiteContext, home_vm: dict, next_lo
             "PREVIOUS_LOG_TEXT_PLAIN": esc(home_vm["previous_log_text_plain"]),
             "NEXT_LOG_UTC": next_log_utc,
             "ASSET_VERSION": ctx.asset_version,
+            "INLINE_CSS_HOME": inline_css_home,
         },
         template_name="template-index.html",
         context="output=index.html",
