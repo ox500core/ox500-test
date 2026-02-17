@@ -100,7 +100,9 @@ FALLBACK_DISRUPTION_TEMPLATE = """<!DOCTYPE html>
   <meta name="twitter:description" content="{{OG_DESC}}" />
   <meta name="twitter:image" content="{{OG_IMAGE}}" />
 
-  <link rel="stylesheet" href="/assets/css/style.css" />
+  <link rel="preload" href="/assets/css/style.css?v={{ASSET_VERSION}}" as="style" />
+  <link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}" /></noscript>
 
   <script type="application/ld+json">
   {{JSONLD}}

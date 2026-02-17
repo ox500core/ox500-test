@@ -206,6 +206,7 @@ export function setViewMode(els, mode, options = {}) {
 
   if (scanBtn) {
     scanBtn.classList.toggle('is-scan', isScanMode);
+    scanBtn.setAttribute('aria-expanded', isScanMode ? 'true' : 'false');
     scanBtn.setAttribute('aria-pressed', isScanMode ? 'true' : 'false');
   }
 
