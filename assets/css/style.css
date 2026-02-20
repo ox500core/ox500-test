@@ -1541,6 +1541,24 @@ a:focus-visible{
   display:none;
 }
 
+/* Mobile performance mode: remove expensive paint layers during first render. */
+@media (max-width:980px), (hover:none) and (pointer:coarse){
+  body::before,
+  body::after,
+  .frame::before{
+    display:none !important;
+  }
+
+  .station{
+    filter:none;
+    transition:none;
+  }
+
+  #boot-layer{
+    transition:none;
+  }
+}
+
 /* Home layout overrides */
 :where(body[data-layout="home"]) .center{
   display:grid;

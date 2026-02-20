@@ -24,19 +24,37 @@ import { initNextLogLabel } from './modules/next-log-label.js';
 // Run synchronously before DOMContentLoaded where possible,
 // otherwise each init function guards itself.
 
-const INITIALIZERS = [
+const CRITICAL_INITIALIZERS = [
   initBoot,
   initTick,
   initUptime,
   initTopbarStatus,
   initSystemPhaseUi,
-  initDiagnostics,
-  initFeed,
-  initGlitch,
   initMobileLogs,
   initNextLogLabel,
 ];
 
-INITIALIZERS.forEach((initFn) => {
+const DEFERRED_INITIALIZERS = [
+  initDiagnostics,
+  initFeed,
+  initGlitch,
+];
+
+CRITICAL_INITIALIZERS.forEach((initFn) => {
   initFn();
 });
+
+const isMobile = window.matchMedia?.('(max-width: 980px), (hover:none) and (pointer:coarse)').matches ?? false;
+const deferredDelayMs = isMobile ? 2500 : 800;
+
+function runDeferredInitializers() {
+  DEFERRED_INITIALIZERS.forEach((initFn) => {
+    initFn();
+  });
+}
+
+if (typeof window.requestIdleCallback === 'function') {
+  window.requestIdleCallback(runDeferredInitializers, { timeout: deferredDelayMs });
+} else {
+  window.setTimeout(runDeferredInitializers, deferredDelayMs);
+}
