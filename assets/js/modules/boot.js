@@ -5,6 +5,8 @@ import { bus } from '../core/event-bus.js';
 
 const BOOT_FADE_DELAY_MS = 80;
 const BOOT_REMOVE_DELAY_MS = 160;
+const MOBILE_POST_RENDER_FX_DELAY_MS = 260;
+const MOBILE_POST_RENDER_FX_VISIBLE_MS = 620;
 const TOPBAR_SYS_PILL_SELECTOR = '.topbar .right .pill';
 const TOPBAR_TAB_SELECTOR = '.btn[data-tab]';
 const MOBILE_BOOT_QUERY = '(max-width: 980px), (hover:none) and (pointer:coarse)';
@@ -22,6 +24,20 @@ export function initBoot() {
 // === PRIVATE ===
 
 function scheduleBootLayer() {
+  const showMobilePostRenderFx = () => {
+    window.setTimeout(() => {
+      const fx = document.createElement('div');
+      fx.id = 'boot-post-render-fx';
+      fx.textContent = 'REINDEXING MEMORY...';
+      document.body.appendChild(fx);
+
+      window.setTimeout(() => {
+        fx.classList.add('is-hidden');
+        window.setTimeout(() => fx.remove(), 180);
+      }, MOBILE_POST_RENDER_FX_VISIBLE_MS);
+    }, MOBILE_POST_RENDER_FX_DELAY_MS);
+  };
+
   const hideBootLayer = () => {
     const bootLayer = document.getElementById('boot-layer');
     if (!bootLayer) return;
@@ -30,6 +46,7 @@ function scheduleBootLayer() {
     if (isMobile) {
       bootLayer.remove();
       bus.emit('boot:complete');
+      showMobilePostRenderFx();
       return;
     }
 

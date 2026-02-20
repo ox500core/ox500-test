@@ -1559,6 +1559,29 @@ a:focus-visible{
   }
 }
 
+#boot-post-render-fx{
+  position:fixed;
+  top:max(var(--space-6), env(safe-area-inset-top));
+  left:50%;
+  transform:translateX(-50%);
+  z-index:var(--z-notice);
+  background:rgba(0,0,0,.62);
+  border:1px solid rgba(var(--ink-rgb), .24);
+  border-radius:999px;
+  padding:6px 12px;
+  color:var(--ink);
+  font-family:var(--ox-font-mono);
+  font-size:10px;
+  letter-spacing:.16em;
+  opacity:1;
+  pointer-events:none;
+  transition:opacity .18s ease;
+}
+
+#boot-post-render-fx.is-hidden{
+  opacity:0;
+}
+
 /* Home layout overrides */
 :where(body[data-layout="home"]) .center{
   display:grid;
