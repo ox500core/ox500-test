@@ -3,8 +3,8 @@
 
 import { bus } from '../core/event-bus.js';
 
-const BOOT_FADE_DELAY_MS = 80;
-const BOOT_REMOVE_DELAY_MS = 160;
+const BOOT_FADE_DELAY_MS = 400;
+const BOOT_REMOVE_DELAY_MS = 300;
 const TOPBAR_SYS_PILL_SELECTOR = '.topbar .right .pill';
 const TOPBAR_TAB_SELECTOR = '.btn[data-tab]';
 const MOBILE_BOOT_QUERY = '(max-width: 980px), (hover:none) and (pointer:coarse)';
@@ -42,11 +42,19 @@ function scheduleBootLayer() {
     }, BOOT_FADE_DELAY_MS);
   };
 
+  const runDesktopBoot = () => {
+    if (document.readyState === 'complete') {
+      hideBootLayer();
+      return;
+    }
+    window.addEventListener('load', hideBootLayer, { once: true });
+  };
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', hideBootLayer, { once: true });
+    document.addEventListener('DOMContentLoaded', runDesktopBoot, { once: true });
     return;
   }
-  hideBootLayer();
+  runDesktopBoot();
 }
 
 function setNextLogCountdown() {
