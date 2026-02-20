@@ -1555,6 +1555,7 @@ a:focus-visible{
   }
 
   #boot-layer{
+    display:none !important;
     transition:none;
   }
 }
