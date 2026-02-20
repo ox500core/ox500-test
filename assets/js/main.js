@@ -45,7 +45,7 @@ CRITICAL_INITIALIZERS.forEach((initFn) => {
   initFn();
 });
 
-const deferredDelayMs = isMobile ? 2500 : 800;
+const deferredDelayMs = isMobile ? 2500 : 2800;
 
 function runDeferredInitializers() {
   DEFERRED_INITIALIZERS.forEach((initFn) => {
