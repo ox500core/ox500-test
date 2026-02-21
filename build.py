@@ -643,14 +643,17 @@ def disruption_slug(raw: str) -> str:
 # =========================================================
 # JSON-LD
 # =========================================================
-def jsonld_disruption_node(base_url, url_path, disruption_name, date, og_image, github_repo):
+def jsonld_disruption_node(base_url, url_path, disruption_name, date, og_image, github_repo, log_items):
+    canonical = f"{base_url}{url_path}"
     date = normalize_date(date)
-    data = {
+
+    collection = {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
+        "@id": f"{canonical}#collection",
         "name": f"DISRUPTION // {disruption_name}",
         "description": f"OX500 disruption node: {disruption_name}",
-        "url": f"{base_url}{url_path}",
+        "url": canonical,
         "dateModified": date,
         "isPartOf": {
             "@type": "WebSite",
@@ -664,18 +667,196 @@ def jsonld_disruption_node(base_url, url_path, disruption_name, date, og_image, 
             "logo": {"@type": "ImageObject", "url": og_image},
         },
     }
-    return json.dumps(data, ensure_ascii=False, indent=2)
 
-
-def jsonld_log_creative_work(base_url: str, url_path: str, log_id: str) -> str:
-    data = {
+    item_list = {
         "@context": "https://schema.org",
-        "@type": "CreativeWork",
-        "name": f"LOG {log_id}",
-        "url": f"{base_url}{url_path}",
-        "author": "OX500",
+        "@type": "ItemList",
+        "@id": f"{canonical}#items",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": idx + 1,
+                "url": item["url"],
+                "name": item["name"],
+            }
+            for idx, item in enumerate(log_items)
+        ],
     }
-    return json.dumps(data, ensure_ascii=False, indent=2)
+
+    breadcrumbs = {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "OX500 Station", "item": f"{base_url}/"},
+            {"@type": "ListItem", "position": 2, "name": f"DISRUPTION // {disruption_name}", "item": canonical},
+        ],
+    }
+
+    return json.dumps([collection, item_list, breadcrumbs], ensure_ascii=False, indent=2)
+
+
+def jsonld_log_creative_work(
+    base_url: str,
+    url_path: str,
+    log_id: str,
+    log_title: str,
+    log_text: str,
+    log_date: str,
+    disruption_name: str,
+    disruption_url: str,
+    og_image: str,
+) -> str:
+    canonical = f"{base_url}{url_path}"
+    description = first_line(log_text, 160)
+    published = normalize_date(log_date) if str(log_date or "").strip() else utc_today_iso()
+
+    article = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "@id": f"{canonical}#post",
+        "headline": f"LOG {log_id} // {log_title}",
+        "description": description,
+        "url": canonical,
+        "mainEntityOfPage": canonical,
+        "datePublished": published,
+        "dateModified": published,
+        "author": {"@type": "Organization", "name": "OX500"},
+        "publisher": {"@type": "Organization", "name": "OX500"},
+        "image": og_image,
+        "isPartOf": {"@type": "CollectionPage", "name": f"DISRUPTION // {disruption_name}", "url": disruption_url},
+        "articleSection": disruption_name,
+    }
+
+    breadcrumbs = {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "OX500 Station", "item": f"{base_url}/"},
+            {"@type": "ListItem", "position": 2, "name": f"DISRUPTION // {disruption_name}", "item": disruption_url},
+            {"@type": "ListItem", "position": 3, "name": f"LOG {log_id}", "item": canonical},
+        ],
+    }
+
+    return json.dumps([article, breadcrumbs], ensure_ascii=False, indent=2)
+
+
+def make_recent_logs_markup(logs_sorted: list, rel, url, limit: int = 6) -> list[str]:
+    recent_logs = []
+    for log in logs_sorted[:limit]:
+        up = url(rel(log))
+        raw_title = str(log.get("title", ""))
+        title = re.sub(r"^LOG\s+\d+\s*//\s*", "", raw_title, flags=re.IGNORECASE).strip()
+        recent_logs.append(make_log_line_link(up, "//", title or raw_title, extra_class="naked"))
+    return recent_logs
+
+
+def make_disruption_nodes_markup(disruption_order: list, disruptions: dict, disruption_rel, url, limit: int = 4) -> list[str]:
+    disruption_nodes = []
+    for d_slug in disruption_order[:limit]:
+        d = disruptions[d_slug]
+        d_name = d["name"]
+        count = len(d["logs"])
+        disruption_nodes.append(
+            make_disruption_node_link(url(disruption_rel(d_slug)), d_name, count, extra_class="naked")
+        )
+    return disruption_nodes
+
+
+def register_seo_entry(seo_registry: dict, page_key: str, title: str, description: str, canonical: str) -> None:
+    title = str(title or "").strip()
+    description = str(description or "").strip()
+    canonical = str(canonical or "").strip()
+
+    if not title:
+        raise ValueError(f"SEO validation failed ({page_key}): empty title")
+    if not description:
+        raise ValueError(f"SEO validation failed ({page_key}): empty description")
+    if not canonical:
+        raise ValueError(f"SEO validation failed ({page_key}): empty canonical")
+
+    for field, value in (("title", title), ("description", description), ("canonical", canonical)):
+        seen = seo_registry[field]
+        prev = seen.get(value)
+        if prev and prev != page_key:
+            raise ValueError(
+                f"SEO validation failed: duplicate {field} between '{prev}' and '{page_key}' -> {value}"
+            )
+        seen[value] = page_key
+
+
+def audit_seo_heuristics(
+    warnings: list[str],
+    infos: list[str],
+    page_key: str,
+    title: str,
+    description: str,
+    canonical: str,
+    og_title: str,
+    og_description: str,
+    og_url: str,
+    og_image: str,
+) -> None:
+    title_len = len(str(title or "").strip())
+    desc_len = len(str(description or "").strip())
+    canonical_str = str(canonical or "").strip()
+    og_title_str = str(og_title or "").strip()
+    og_desc_str = str(og_description or "").strip()
+    og_url_str = str(og_url or "").strip()
+    og_image_str = str(og_image or "").strip()
+
+    if title_len < 30:
+        warnings.append(
+            f"[SEO WARNING] {page_key} | title length={title_len} (recommended >=30)"
+        )
+    elif title_len < 45:
+        infos.append(
+            f"[SEO INFO] {page_key} | title length={title_len} (recommended 45-65)"
+        )
+    elif title_len <= 65:
+        pass
+    elif title_len <= 75:
+        infos.append(
+            f"[SEO INFO] {page_key} | title length={title_len} (recommended 45-65)"
+        )
+    else:
+        warnings.append(
+            f"[SEO WARNING] {page_key} | title length={title_len} (recommended <=75)"
+        )
+
+    if desc_len < 70:
+        warnings.append(
+            f"[SEO WARNING] {page_key} | description length={desc_len} (recommended >=70)"
+        )
+    elif desc_len < 120:
+        infos.append(
+            f"[SEO INFO] {page_key} | description length={desc_len} (recommended 120-165)"
+        )
+    elif desc_len <= 165:
+        pass
+    elif desc_len <= 200:
+        infos.append(
+            f"[SEO INFO] {page_key} | description length={desc_len} (recommended 120-165)"
+        )
+    else:
+        warnings.append(
+            f"[SEO WARNING] {page_key} | description length={desc_len} (recommended <=200)"
+        )
+
+    if not og_title_str:
+        warnings.append(f"[SEO WARNING] {page_key} | missing og:title")
+    if not og_desc_str:
+        warnings.append(f"[SEO WARNING] {page_key} | missing og:description")
+    if not og_image_str:
+        warnings.append(f"[SEO WARNING] {page_key} | missing og:image")
+
+    if canonical_str and not canonical_str.startswith("https://"):
+        warnings.append(
+            f"[SEO WARNING] {page_key} | canonical is not https ({canonical_str})"
+        )
+    if canonical_str and og_url_str and canonical_str != og_url_str:
+        warnings.append(
+            f"[SEO WARNING] {page_key} | og:url mismatch canonical | canonical={canonical_str} | og:url={og_url_str}"
+        )
 
 # =========================================================
 # BUILD STAGES
@@ -886,8 +1067,14 @@ def stage_group_disruptions(logs_sorted: list):
 
 def stage_build_log_pages(
     logs_sorted: list,
+    disruptions: dict,
+    disruption_order: list,
     t_log: str,
     ctx: SiteContext,
+    next_log_utc: str,
+    seo_registry: dict,
+    seo_warnings: list[str],
+    seo_infos: list[str],
     rel,
     url,
     disruption_rel,
@@ -897,6 +1084,11 @@ def stage_build_log_pages(
         if not SHOW_PREV_NEXT_TITLES_IN_TEXT:
             return prefix
         return f'{prefix}: {target_log.get("title", "").strip()}'
+
+    recent_logs_markup = make_recent_logs_markup(logs_sorted, rel, url)
+    disruption_nodes_markup = make_disruption_nodes_markup(disruption_order, disruptions, disruption_rel, url)
+    sensor_label = "SENSOR DRIFT VECTOR"
+    sensor_code = derive_sensor_code(ctx.asset_version)
 
     for i, log in enumerate(logs_sorted):
         rel_path = rel(log)
@@ -932,8 +1124,36 @@ def stage_build_log_pages(
         ui_state = log.get("ui_state") if isinstance(log.get("ui_state"), dict) else {}
         log_mode = str(ui_state.get("mode") or "READ_ONLY")
         log_state = str(ui_state.get("status") or "SYSTEM_PARTIAL")
-        seo_title = f"LOG {log['id']} | OX500"
-        seo_description = first_line(log.get("text", ""), 150)
+        entry_title = derive_mobile_log_entry_title(log)
+        disruption_label = derive_mobile_disruption_title(log)
+        seo_title = f"LOG {log['id']} // {entry_title} | OX500"
+        seo_description = first_line(f"DISRUPTION {disruption_label}. {log.get('text', '')}", 155)
+        previous_log_text_plain = " ".join(str(prev_log.get("text", "")).split()) if prev_log else ""
+        latest_log_prev_url = url(rel(prev_log)) if prev_log else ""
+        latest_log_prev_attrs = "" if prev_log else 'aria-disabled="true" tabindex="-1"'
+        disruption_url = canonical
+        if disruption_slug_value:
+            disruption_url = f"{ctx.base_url}{url(disruption_rel(disruption_slug_value))}"
+
+        register_seo_entry(
+            seo_registry,
+            page_key=f"log:{log['id']}",
+            title=seo_title,
+            description=seo_description,
+            canonical=canonical,
+        )
+        audit_seo_heuristics(
+            warnings=seo_warnings,
+            infos=seo_infos,
+            page_key=f"log:{log['id']}",
+            title=seo_title,
+            description=seo_description,
+            canonical=canonical,
+            og_title=seo_title,
+            og_description=seo_description,
+            og_url=canonical,
+            og_image=ctx.og_image,
+        )
 
         page = render(
             t_log,
@@ -945,14 +1165,35 @@ def stage_build_log_pages(
                 "OG_TITLE": esc(seo_title),
                 "OG_DESC": esc(seo_description),
                 "OG_IMAGE": ctx.og_image,
-                "JSONLD": jsonld_log_creative_work(ctx.base_url, url_path, str(log["id"])),
+                "JSONLD": jsonld_log_creative_work(
+                    ctx.base_url,
+                    url_path,
+                    str(log["id"]),
+                    entry_title,
+                    str(log.get("text", "")),
+                    str(log.get("date", "")),
+                    disruption_label,
+                    disruption_url,
+                    ctx.og_image,
+                ),
                 "LOG_ID": esc(log["id"]),
                 "LOG_TITLE": esc(log["title"]),
                 "LOG_DATE": esc(log.get("date", "")),
                 "LOG_TEXT": format_log_text(log.get("text", "")),
+                "RECENT_LOGS": "\n".join(recent_logs_markup),
+                "DISRUPTION_NODES": "\n".join(disruption_nodes_markup),
+                "NEXT_LOG_UTC": next_log_utc,
+                "LATEST_LOG_DISRUPTION_TITLE": esc(disruption_label),
+                "LATEST_LOG_ENTRY_TITLE": esc(entry_title),
+                "LATEST_LOG_URL": url_path,
+                "LATEST_LOG_PREV_URL": latest_log_prev_url,
+                "LATEST_LOG_PREV_ATTRS": latest_log_prev_attrs,
+                "PREVIOUS_LOG_TEXT_PLAIN": esc(previous_log_text_plain),
                 "SYSTEM_CORE_START_UTC": esc(ctx.core_start),
                 "AVAILABLE_COUNT": ctx.available_count,
                 "SYS_VER": esc(ctx.sys_ver),
+                "SENSOR_LABEL": sensor_label,
+                "SENSOR_CODE": sensor_code,
                 "SYSTEM_AGE_DAYS_AT_EVENT": esc(log.get("system_age_days_at_event", "")),
                 "CURRENT_LOG_ID": esc(log["id"]),
                 "LOG_MODE": esc(log_mode),
@@ -975,10 +1216,15 @@ def stage_build_log_pages(
 
 
 def stage_build_disruption_pages(
+    logs_sorted: list,
     disruption_order: list,
     disruptions: dict,
     t_node: str,
     ctx: SiteContext,
+    next_log_utc: str,
+    seo_registry: dict,
+    seo_warnings: list[str],
+    seo_infos: list[str],
     rel,
     url,
     disruption_rel,
@@ -995,6 +1241,11 @@ def stage_build_disruption_pages(
     else:
         node_template_name = "FALLBACK_DISRUPTION_TEMPLATE"
 
+    recent_logs_markup = make_recent_logs_markup(logs_sorted, rel, url)
+    disruption_nodes_markup = make_disruption_nodes_markup(disruption_order, disruptions, disruption_rel, url)
+    sensor_label = "SENSOR DRIFT VECTOR"
+    sensor_code = derive_sensor_code(ctx.asset_version)
+
     for d_slug in disruption_order:
         d = disruptions[d_slug]
         d_name = d["name"]
@@ -1010,9 +1261,37 @@ def stage_build_disruption_pages(
         for log in d_logs:
             node_list.append(make_log_line_link(url(rel(log)), f'LOG: {log["id"]}', log.get("title", "")))
 
-        page_title = f"DISRUPTION // {d_name} - OX500"
-        description = f"OX500 disruption node: {d_name}. Contains {count} log pages."
-        og_desc = f"DISRUPTION // {d_name} [{count}]"
+        active_log = d_logs[0] if d_logs else {}
+        active_log_id = str(active_log.get("id", ""))
+        active_log_date = str(active_log.get("date", ""))
+        active_log_title = derive_mobile_log_entry_title(active_log) if active_log else "UNTITLED"
+        active_log_text = format_log_text(active_log.get("text", "")) if active_log else ""
+
+        page_title = f"DISRUPTION // {d_name} [{count}] | OX500"
+        description = first_line(
+            f"Disruption node {d_name} with {count} logs. Latest LOG {active_log_id}: {active_log.get('text', '')}",
+            155,
+        )
+        og_desc = description
+        register_seo_entry(
+            seo_registry,
+            page_key=f"disruption:{d_slug}",
+            title=page_title,
+            description=description,
+            canonical=canonical,
+        )
+        audit_seo_heuristics(
+            warnings=seo_warnings,
+            infos=seo_infos,
+            page_key=f"disruption:{d_slug}",
+            title=page_title,
+            description=description,
+            canonical=canonical,
+            og_title=page_title,
+            og_description=og_desc,
+            og_url=canonical,
+            og_image=ctx.og_image,
+        )
 
         node_page = render(
             node_template,
@@ -1034,15 +1313,33 @@ def stage_build_disruption_pages(
                     newest_date,
                     ctx.og_image,
                     ctx.github_repo,
+                    log_items=[
+                        {
+                            "name": f'LOG {log["id"]} // {derive_mobile_log_entry_title(log)}',
+                            "url": f'{ctx.base_url}{url(rel(log))}',
+                        }
+                        for log in d_logs[:50]
+                    ],
                 ),
                 "H1": esc(f"DISRUPTION // {d_name} [{count}]"),
                 "META": esc(f"OX500 // DISRUPTION_FEED | NODE | LOGS: {count}"),
-                "CURRENT_LOG_ID": esc(d_logs[0]["id"]) if d_logs else "",
+                "CURRENT_LOG_ID": esc(active_log_id),
+                "ACTIVE_LOG_ID": esc(active_log_id),
+                "ACTIVE_LOG_DATE": esc(active_log_date),
+                "ACTIVE_LOG_TEXT": active_log_text,
+                "ACTIVE_DISRUPTION_TITLE": esc(d_name),
+                "ACTIVE_LOG_ENTRY_TITLE": esc(active_log_title),
+                "DISRUPTION_LOG_COUNT": esc(str(count)),
                 "NODE_LOG_LIST": "\n".join(node_list),
+                "RECENT_LOGS": "\n".join(recent_logs_markup),
+                "DISRUPTION_NODES": "\n".join(disruption_nodes_markup),
+                "NEXT_LOG_UTC": next_log_utc,
                 "YOUTUBE": ctx.youtube,
                 "BANDCAMP": ctx.bandcamp,
                 "GITHUB": ctx.github_repo,
                 "BASE_URL": ctx.base_url,
+                "SENSOR_LABEL": sensor_label,
+                "SENSOR_CODE": sensor_code,
                 "ASSET_VERSION": ctx.asset_version,
             },
             template_name=node_template_name,
@@ -1247,10 +1544,41 @@ def stage_export_json_data(logs_sorted: list, disruptions_nav_payload: list, rel
     )
 
 
-def stage_render_homepage(t_index: str, ctx: SiteContext, home_vm: dict, next_log_utc: str) -> None:
+def stage_render_homepage(
+    t_index: str,
+    ctx: SiteContext,
+    home_vm: dict,
+    next_log_utc: str,
+    seo_registry: dict,
+    seo_warnings: list[str],
+    seo_infos: list[str],
+) -> None:
     sensor_label = "SENSOR DRIFT VECTOR"
     sensor_code = derive_sensor_code(ctx.asset_version)
     inline_css_home = load_home_inline_css()
+    home_title = f"{ctx.site_title} // STATION"
+    home_description = "OX500 STATION - system interface. Archive access is conditional. The logs remain."
+    home_canonical = f"{ctx.base_url}/"
+
+    register_seo_entry(
+        seo_registry,
+        page_key="home:/",
+        title=home_title,
+        description=home_description,
+        canonical=home_canonical,
+    )
+    audit_seo_heuristics(
+        warnings=seo_warnings,
+        infos=seo_infos,
+        page_key="home:/",
+        title=home_title,
+        description=home_description,
+        canonical=home_canonical,
+        og_title=home_title,
+        og_description="System interface. Archive access is conditional. The logs remain.",
+        og_url=home_canonical,
+        og_image=ctx.og_image,
+    )
 
     index_html = render(
         t_index,
@@ -1260,7 +1588,7 @@ def stage_render_homepage(t_index: str, ctx: SiteContext, home_vm: dict, next_lo
             "AVAILABLE_COUNT": ctx.available_count,
             "SYS_VER": esc(ctx.sys_ver),
             "BASE_URL": ctx.base_url,
-            "CANONICAL": f"{ctx.base_url}/",
+            "CANONICAL": home_canonical,
             "SITEMAP_URL": f"{ctx.base_url}/sitemap.xml",
             "SITE_TITLE": esc(ctx.site_title),
             "OG_IMAGE": ctx.og_image,
@@ -1300,6 +1628,9 @@ def stage_build_home_and_exports(
     t_index: str,
     ctx: SiteContext,
     next_log_utc: str,
+    seo_registry: dict,
+    seo_warnings: list[str],
+    seo_infos: list[str],
     rel,
     url,
     disruption_rel,
@@ -1324,6 +1655,9 @@ def stage_build_home_and_exports(
         ctx=ctx,
         home_vm=home_vm,
         next_log_utc=next_log_utc,
+        seo_registry=seo_registry,
+        seo_warnings=seo_warnings,
+        seo_infos=seo_infos,
     )
 
 
@@ -1405,6 +1739,9 @@ def build():
     )
 
     sitemap_entries = []
+    seo_registry = {"title": {}, "description": {}, "canonical": {}}
+    seo_warnings: list[str] = []
+    seo_infos: list[str] = []
     rel = make_log_rel_path
     url = make_url_path
     disruption_rel = make_disruption_rel_path
@@ -1413,8 +1750,14 @@ def build():
 
     stage_build_log_pages(
         logs_sorted=logs_sorted,
+        disruptions=disruptions,
+        disruption_order=disruption_order,
         t_log=t_log,
         ctx=ctx,
+        next_log_utc=next_log_utc,
+        seo_registry=seo_registry,
+        seo_warnings=seo_warnings,
+        seo_infos=seo_infos,
         rel=rel,
         url=url,
         disruption_rel=disruption_rel,
@@ -1422,10 +1765,15 @@ def build():
     )
 
     stage_build_disruption_pages(
+        logs_sorted=logs_sorted,
         disruption_order=disruption_order,
         disruptions=disruptions,
         t_node=t_node,
         ctx=ctx,
+        next_log_utc=next_log_utc,
+        seo_registry=seo_registry,
+        seo_warnings=seo_warnings,
+        seo_infos=seo_infos,
         rel=rel,
         url=url,
         disruption_rel=disruption_rel,
@@ -1439,12 +1787,28 @@ def build():
         t_index=t_index,
         ctx=ctx,
         next_log_utc=next_log_utc,
+        seo_registry=seo_registry,
+        seo_warnings=seo_warnings,
+        seo_infos=seo_infos,
         rel=rel,
         url=url,
         disruption_rel=disruption_rel,
     )
 
     stage_write_robots_and_sitemap(ctx.base_url, logs_sorted, sitemap_entries)
+
+    if seo_warnings:
+        for warning in seo_warnings:
+            print(warning)
+        print(f"SEO warnings: {len(seo_warnings)}")
+    else:
+        print("SEO warnings: 0")
+    if seo_infos:
+        for info in seo_infos:
+            print(info)
+        print(f"SEO info: {len(seo_infos)}")
+    else:
+        print("SEO info: 0")
 
     print("BUILD OK — index, logs, disruption nodes, logs pages json, sitemap, robots, JS bundle generated")
 

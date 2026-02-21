@@ -1,10 +1,8 @@
-﻿<!doctype html>
-<html lang="{{LANG}}">
+<!doctype html>
+<html lang="{{LANG}}" data-phase="nominal">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="robots" content="noindex, nofollow, noarchive" />
-  <meta name="googlebot" content="noindex, nofollow, noarchive" />
   <meta name="theme-color" content="#050608" />
   <title>{{SITE_TITLE}} // STATION</title>
   <meta name="description" content="OX500 STATION &mdash; system interface. Archive access is conditional. The logs remain." />
@@ -23,10 +21,12 @@
   <meta name="twitter:description" content="System interface. Archive access is conditional. The logs remain." />
   <meta name="twitter:image" content="{{OG_IMAGE}}" />
 
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-latin-400.woff2" as="font" type="font/woff2" />
+
   <style id="criticalHomeCss">{{INLINE_CSS_HOME}}</style>
   <script type="application/ld+json">{{DISRUPTION_SERIES_JSONLD}}</script>
 </head>
-<body data-log-level="{{LATEST_LOG_ID}}" data-core-start="{{SYSTEM_CORE_START_UTC}}" data-layout="home">
+<body data-log-level="{{LATEST_LOG_ID}}" data-core-start="{{SYSTEM_CORE_START_UTC}}" data-layout="shell" data-page="home">
   <main aria-label="OX500 STATION interface">
 
   <div class="vignette" aria-hidden="true"></div>
@@ -54,19 +54,19 @@
           <div class="right">
             <span class="topbar-status" id="topbarStatus" aria-hidden="true">
               <span class="topbar-status-item">
-                <span class="topbar-status-icon" id="topbarStatusDriftIcon">⏱️</span>
+                <span class="topbar-status-icon" id="topbarStatusDriftIcon">&#8776;</span>
                 <span class="topbar-status-value" id="topbarStatusDriftValue">+0.000</span>
               </span>
               <span class="topbar-status-item">
-                <span class="topbar-status-icon" id="topbarStatusAnomalyIcon">⚠️</span>
+                <span class="topbar-status-icon" id="topbarStatusAnomalyIcon">&#9888;</span>
                 <span class="topbar-status-value" id="topbarStatusAnomalyValue">0.00</span>
               </span>
               <span class="topbar-status-item topbar-status-item-density">
-                <span class="topbar-status-icon" id="topbarStatusDensityIcon">📶</span>
+                <span class="topbar-status-icon" id="topbarStatusDensityIcon">&#9678;</span>
                 <span class="topbar-status-value" id="topbarStatusDensityValue">0.00</span>
               </span>
               <span class="topbar-status-item topbar-status-item-phase">
-                <span class="topbar-status-icon phase-dot" id="topbarStatusPhaseIcon">🟢</span>
+                <span class="topbar-status-icon phase-dot" id="topbarStatusPhaseIcon">&#9679;</span>
               </span>
             </span>
             <span class="pill optional deep">SYS <b id="sysVer">{{SYS_VER}}</b></span>
@@ -246,5 +246,7 @@
 
 </body>
 </html>
+
+
 
 

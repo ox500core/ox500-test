@@ -7,13 +7,18 @@ import { bus } from '../core/event-bus.js';
 // === CONFIG ===
 
 const PHASES = { NOMINAL: 'NOMINAL', UNSTABLE: 'UNSTABLE', INCIDENT: 'INCIDENT' };
-const PHASE_TRANSITION_COOLDOWN_MS = 4200;
+const PHASE_TRANSITION_COOLDOWN_MS = 7000;
+const INCIDENT_DURATION_MIN_MS = 2200;
+const INCIDENT_DURATION_MAX_MS = 6500;
+const INCIDENT_REENTRY_BLOCK_MS = 55000;
+const UNSTABLE_MIN_DWELL_BEFORE_INCIDENT_MS = 12000;
+const UNSTABLE_MAX_DWELL_MS = 45000;
 const RECENT_EVENT_WINDOW_MS = 60000;
 const PRESSURE_THRESHOLDS = {
-  NOMINAL_TO_UNSTABLE: 0.36,
-  UNSTABLE_TO_INCIDENT: 0.5,
-  UNSTABLE_TO_NOMINAL: 0.24,
-  INCIDENT_TO_UNSTABLE: 0.4,
+  NOMINAL_TO_UNSTABLE: 0.50,
+  UNSTABLE_TO_INCIDENT: 0.62,
+  UNSTABLE_TO_NOMINAL: 0.30,
+  INCIDENT_TO_UNSTABLE: 0.46,
 };
 const DENSITY_LABEL_THRESHOLDS = { LOW: 0.24, STABLE: 0.62 };
 const ANOMALY_LABEL_THRESHOLDS = { LOW: 0.04, RISING: 0.1 };
@@ -37,9 +42,12 @@ export function initDiagnostics() {
   let temporalDrift = 0.003;
   let coherence = 0.982;
   let anomaly = 0.018;
-  let pressure = 0.34;
+  let pressure = 0.24;
   let ambientStress = 0.5;
   let pulseTimer = null;
+  let unstableSince = 0;
+  let incidentEndsAt = 0;
+  let incidentBlockedUntil = Date.now() + 25000;
 
   const recentEvents = [];
   let lastEventAt = Date.now();
@@ -61,6 +69,7 @@ export function initDiagnostics() {
   // === HELPERS ===
 
   function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+  function randomRange(min, max) { return min + ((max - min) * rand()); }
 
   function pushEvent(weight, semantic) {
     const now = Date.now();
@@ -129,22 +138,53 @@ export function initDiagnostics() {
 
   function transition(next, now) {
     if (next === phase) return;
+    const prev = phase;
     phase = next;
     phaseChangedAt = now;
+
+    if (next === PHASES.UNSTABLE && prev !== PHASES.UNSTABLE) {
+      unstableSince = now;
+    } else if (next === PHASES.NOMINAL) {
+      unstableSince = 0;
+    }
+
+    if (next === PHASES.INCIDENT) {
+      incidentEndsAt = now + Math.round(randomRange(INCIDENT_DURATION_MIN_MS, INCIDENT_DURATION_MAX_MS));
+      incidentBlockedUntil = now + INCIDENT_REENTRY_BLOCK_MS;
+    }
+
     applyPhaseVisual(true);
     bus.emit('system:phase', { phase });
   }
 
   function updatePhase(now) {
+    if (phase === PHASES.INCIDENT) {
+      if (now >= incidentEndsAt) {
+        transition(PHASES.UNSTABLE, now);
+        return;
+      }
+
+      if (now - phaseChangedAt < PHASE_TRANSITION_COOLDOWN_MS) return;
+      if (pressure <= PRESSURE_THRESHOLDS.INCIDENT_TO_UNSTABLE) {
+        transition(PHASES.UNSTABLE, now);
+      }
+      return;
+    }
+
     if (now - phaseChangedAt < PHASE_TRANSITION_COOLDOWN_MS) return;
 
     if (phase === PHASES.NOMINAL && pressure >= PRESSURE_THRESHOLDS.NOMINAL_TO_UNSTABLE) {
       transition(PHASES.UNSTABLE, now);
     } else if (phase === PHASES.UNSTABLE) {
-      if (pressure >= PRESSURE_THRESHOLDS.UNSTABLE_TO_INCIDENT) transition(PHASES.INCIDENT, now);
+      const unstableDwell = unstableSince ? now - unstableSince : 0;
+      const canEnterIncident =
+        now >= incidentBlockedUntil &&
+        unstableDwell >= UNSTABLE_MIN_DWELL_BEFORE_INCIDENT_MS &&
+        pressure >= PRESSURE_THRESHOLDS.UNSTABLE_TO_INCIDENT;
+
+      if (canEnterIncident) transition(PHASES.INCIDENT, now);
+      else if (unstableDwell >= UNSTABLE_MAX_DWELL_MS) transition(PHASES.NOMINAL, now);
       else if (pressure <= PRESSURE_THRESHOLDS.UNSTABLE_TO_NOMINAL) transition(PHASES.NOMINAL, now);
-    } else if (phase === PHASES.INCIDENT && pressure <= PRESSURE_THRESHOLDS.INCIDENT_TO_UNSTABLE) {
-      transition(PHASES.UNSTABLE, now);
     }
   }
 
@@ -205,7 +245,7 @@ export function initDiagnostics() {
     // Ambient load wave keeps the system alive even without heavy user interaction.
     const waveA = Math.sin(now / 26000);
     const waveB = Math.sin(now / 61000 + 1.3);
-    const ambientTarget = clamp(0.52 + (waveA * 0.24) + (waveB * 0.16), 0.2, 0.86);
+    const ambientTarget = clamp(0.45 + (waveA * 0.20) + (waveB * 0.14), 0.16, 0.78);
     ambientStress = clamp(
       ambientStress * 0.82 + ambientTarget * 0.18 + (rand() - 0.5) * 0.02,
       0.18,
@@ -213,13 +253,17 @@ export function initDiagnostics() {
     );
     const ambientPull = (ambientStress - pressure) * 0.14;
 
+    const phaseSettle =
+      phase === PHASES.NOMINAL ? -0.010 :
+      phase === PHASES.UNSTABLE ? -0.006 : 0;
+
     pressure = clamp(
       pressure * 0.64 +
       ambientPull +
-      ambientStress * 0.24 +
-      density * 0.05 +
-      silencePressure * 0.03 -
-      0.005 +
+      ambientStress * 0.19 +
+      density * 0.04 -
+      silencePressure * 0.02 +
+      phaseSettle +
       (rand() - 0.5) * 0.01,
       0,
       1,

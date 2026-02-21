@@ -1,23 +1,15 @@
 {
-  "name": "ox500-test",
+  "name": "ox500test1",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/ox500core/ox500-test.git"
-  },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/ox500core/ox500-test/issues"
-  },
-  "homepage": "https://github.com/ox500core/ox500-test#readme",
-  "dependencies": {
+  "devDependencies": {
     "esbuild": "^0.27.3"
   }
 }

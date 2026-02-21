@@ -1,15 +1,12 @@
 <!doctype html>
-<html lang="{{LANG}}">
+<html lang="{{LANG}}" data-phase="nominal">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="robots" content="noindex, nofollow, noarchive" />
-  <meta name="googlebot" content="noindex, nofollow, noarchive" />
   <meta name="theme-color" content="#050608" />
 
   <title>{{SEO_TITLE}}</title>
   <meta name="description" content="{{SEO_DESCRIPTION}}" />
-
   <link rel="canonical" href="{{SEO_CANONICAL}}" />
 
   <meta property="og:title" content="{{OG_TITLE}}" />
@@ -23,10 +20,12 @@
   <meta name="twitter:description" content="{{OG_DESC}}" />
   <meta name="twitter:image" content="{{OG_IMAGE}}" />
 
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-latin-400.woff2" as="font" type="font/woff2" />
+
   <link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}" />
   <script type="application/ld+json">{{JSONLD}}</script>
 </head>
-<body data-log-level="{{LOG_ID}}" data-core-start="{{SYSTEM_CORE_START_UTC}}" data-layout="log">
+<body data-log-level="{{LOG_ID}}" data-core-start="{{SYSTEM_CORE_START_UTC}}" data-layout="shell" data-page="log">
   <main aria-label="OX500 STATION interface">
 
   <div class="vignette" aria-hidden="true"></div>
@@ -39,80 +38,110 @@
         RENDER_OK
       </div>
 
+      <div class="live-feed-inline">
+        <span class="live-feed-label">LIVE_FEED</span>
+        <span class="live-feed-line" id="feed1">ARCHIVE BUS: STABLE LINK</span>
+      </div>
+
       <div class="grid grid-sidebars-wide">
         <div class="topbar" aria-label="system bar">
           <div class="left">
-            <span class="pill log-pill"><b>LOG</b> {{LOG_ID}}</span>
-            <span class="pill">CHANNEL: TEXT</span>
-            <span class="pill">NODE: OX500_CORE</span>
+            <span class="pill" id="topbarNodePill">NODE: <b>OX500_CORE</b></span>
+            <span class="pill log-pill" id="topbarLogStamp">{{LOG_ID}} {{LOG_DATE}}</span>
+            <span class="pill optional deep">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
           </div>
           <div class="right">
+            <span class="topbar-status" id="topbarStatus" aria-hidden="true">
+              <span class="topbar-status-item">
+                <span class="topbar-status-icon" id="topbarStatusDriftIcon">⏱️</span>
+                <span class="topbar-status-value" id="topbarStatusDriftValue">+0.000</span>
+              </span>
+              <span class="topbar-status-item">
+                <span class="topbar-status-icon" id="topbarStatusAnomalyIcon">⚠️</span>
+                <span class="topbar-status-value" id="topbarStatusAnomalyValue">0.00</span>
+              </span>
+              <span class="topbar-status-item topbar-status-item-density">
+                <span class="topbar-status-icon" id="topbarStatusDensityIcon">📶</span>
+                <span class="topbar-status-value" id="topbarStatusDensityValue">0.00</span>
+              </span>
+              <span class="topbar-status-item topbar-status-item-phase">
+                <span class="topbar-status-icon phase-dot" id="topbarStatusPhaseIcon">🟢</span>
+              </span>
+            </span>
             <span class="pill optional deep">SYS <b id="sysVer">{{SYS_VER}}</b></span>
+            <span class="pill optional deep" id="topbarSensorPill">{{SENSOR_LABEL}} <span class="hot">{{SENSOR_CODE}}</span> INIT</span>
             <span class="pill time-pill">TIME <b id="clock">--:--:--</b></span>
-            <span class="pill optional deep">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
           </div>
         </div>
 
         <div class="leftcol left-column">
-          <section class="panel">
-            <div class="hd"><span class="tag">TRACE_INDEX</span><span>MEM</span></div>
-            <div class="bd scroll">
-              <div class="meta-line">
-                <span class="meta-pill">DATE {{LOG_DATE}}</span>
-                <span class="meta-pill">ID {{LOG_ID}}</span>
-              </div>
-              <div class="meta-note">
-                INCIDENT TIME INDEX: +{{SYSTEM_AGE_DAYS_AT_EVENT}}d
-              </div>
-              <div class="meta-note">
-                MODE: {{LOG_MODE}}<br />
-                STATE: {{LOG_STATE}}
-              </div>
-              <div class="spacer-10"></div>
-              {{NODE_META}}
+          <section class="panel recent-logs" id="recentLogsPanel">
+            <div class="hd"><span class="tag">RECENT_LOGS</span><span>LIST</span></div>
+            <div class="bd" id="leftBlock2">
+              {{RECENT_LOGS}}
+              <span class="log-line naked recent-log-next">NEXT LOG IN: <b id="nextLogCountdown" data-next-log="{{NEXT_LOG_UTC}}">...</b></span>
             </div>
           </section>
-
-          <section class="panel">
-            <div class="hd"><span class="tag">NAV</span><span>IO</span></div>
-            <div class="bd scroll">
-              <div class="meta-line">
-                {{FULL_NAV}}
-              </div>
-              <div class="meta-note">
-                RETURN PATHS ARE MARKED.<br />
-                THE SYSTEM STILL EXPECTS YOU TO LEAVE.
-              </div>
+          <section class="panel recent-logs" id="disruptionNodesPanel">
+            <div class="hd"><span class="tag">DISRUPTION_NODES</span><span>SERIES</span></div>
+            <div class="bd" id="leftBlock3">
+              {{DISRUPTION_NODES}}
             </div>
           </section>
-
         </div>
 
         <div class="center">
           <div id="overlayLayer" aria-live="polite"></div>
-          <section class="hero hero-mini" id="hero">
-            <h1 class="title" id="title">LOG {{LOG_ID}}</h1>
-            <div class="subtitle">{{LOG_TITLE}}</div>
-
-            <div class="controls" aria-label="external nodes">
-              <a class="btn" href="{{GITHUB}}" data-tab="src">SOURCE</a>
-              <a class="btn" href="{{YOUTUBE}}" data-tab="yt">TRANSMIT</a>
-              <a class="btn" href="{{BANDCAMP}}" data-tab="bc">NODE_AUDIO</a>
+          <section class="panel active-view-panel" id="activeViewPanel">
+            <div class="hd">
+              <span class="tag">ACTIVE_VIEW</span>
+              <div class="active-view-mode-switch" id="activeViewModeSwitch" role="group" aria-label="Active view mode">
+                <button type="button" class="panel-btn active-view-toggle-btn panel-hd-state-text" id="scanModeBtn" data-av-mode="scan" aria-controls="avScan" aria-expanded="false" aria-pressed="false" aria-label="Toggle LIVE and SCAN">
+                  <span class="mode-label mode-label-live">LIVE</span>
+                  <span class="active-view-mode-sep panel-hd-state-text" aria-hidden="true">/</span>
+                  <span class="mode-label mode-label-scan">SCAN</span>
+                </button>
+              </div>
+            </div>
+            <div class="active-view-actions" hidden></div>
+            <div id="avScan" hidden>
+              <div id="scanInputWrapper">
+                <span class="scan-prefix">&gt; SCAN_QUERY:</span>
+                <input id="scanInput" type="text" autocomplete="off" placeholder="id / title / tag / disruption" />
+              </div>
+              <div id="scanResults" class="logs"></div>
+            </div>
+            <div class="bd scroll log-text" data-view-mode="entry" data-initial-log-id="{{LOG_ID}}">
+              <div class="mobile-active-log-title" data-open-disruption-list="1" role="button" tabindex="0">
+                <span class="mobile-active-log-prefix">DISRUPTION //</span>
+                <span class="mobile-active-log-name">{{LATEST_LOG_DISRUPTION_TITLE}}</span>
+                <div class="mobile-active-log-entry">//{{LATEST_LOG_ENTRY_TITLE}}</div>
+              </div>
+              {{LOG_TEXT}}
+            </div>
+            <div class="mobile-log-nav" aria-label="mobile log navigation">
+              <button type="button" class="mobile-log-nav-btn back" id="backFromSearchBtn" aria-label="Back to search results" hidden>&#8617; BACK</button>
+              <button type="button" class="mobile-log-nav-btn prev" id="mobilePrevLogBtn" aria-label="Previous log">&#9664; PREV</button>
+              <button type="button" class="mobile-log-nav-btn next" id="mobileNextLogBtn" aria-label="Next log">NEXT &#9654;</button>
             </div>
           </section>
+          <nav class="mobile-index-nav" aria-label="mobile index menu">
+            <a href="{{BASE_URL}}/" data-tab="core">CORE</a>
+            <a href="{{BASE_URL}}/#disruptionNodesPanel" data-tab="disruption">DISRUPTION</a>
+            <a href="{{BASE_URL}}/#activeViewPanel" data-tab="output">OUTPUT</a>
+          </nav>
 
-          <div class="dock dock-wide" aria-label="log text">
-            <section class="panel">
-              <div class="hd"><span class="tag">LOG_TEXT</span><span>TXT</span></div>
-              <div class="bd scroll log-text">
-                {{LOG_TEXT}}
-              </div>
-            </section>
-          </div>
+          <section class="hero home-hero" id="hero">
+            <h1 class="title" id="title">OX500 STATION</h1>
+            <div class="status" id="status">
+              <div class="line"><span class="key">ACTIVE_LOG:</span> <span class="val">{{LOG_ID}}</span></div>
+              <div class="line">TITLE / <span class="val">{{LOG_TITLE}}</span></div>
+            </div>
+          </section>
         </div>
 
         <div class="rightcol">
-          <section class="panel">
+          <section class="panel recent-logs">
             <div class="hd"><span class="tag">DIAGNOSTICS</span><span>STATE</span></div>
             <div class="bd mono" id="rightBlock1">
               <span class="diag-line log-line naked"><span class="log-id">TEMPORAL DRIFT:</span><span class="log-tag">+0.003</span></span>
@@ -124,31 +153,32 @@
             </div>
           </section>
 
-          <section class="panel">
+          <section class="panel recent-logs">
             <div class="hd"><span class="tag">INDEX</span><span>MAP</span></div>
             <div class="bd mono" id="rightBlock2">
-              <span class="log-line naked"><span class="log-id">HOME :</span><span class="log-tag">AVAILABLE</span></span>
-              <span class="log-line naked"><span class="log-id">DISRUPTION :</span><span class="log-tag">LINKED</span></span>
-              <span class="log-line naked"><span class="log-id">SERIES :</span><span class="log-tag">LINKED</span></span>
-              <span class="log-line naked"><span class="log-id">LOG_TEXT :</span><span class="log-tag">LOADED</span></span>
-              <span class="log-line naked"><span class="log-id">MODE :</span><span class="log-tag">OBSERVE_ONLY</span></span>
+              <a class="log-line naked" href="{{BASE_URL}}/" data-tab="core"><span class="log-id">CORE :</span><span class="log-tag">CORE</span></a>
+              <a class="log-line naked" href="{{BASE_URL}}/#disruptionNodesPanel" data-tab="disruption"><span class="log-id">DISRUPTION :</span><span class="log-tag">DISRUPTION</span></a>
+              <span class="log-line naked"><span class="log-id">EXTERNAL_NODES</span><span class="log-tag"></span></span>
+              <a class="log-line naked" href="{{YOUTUBE}}"><span class="log-id">TRANSMISSIONS :</span><span class="log-tag">YOUTUBE</span></a>
+              <a class="log-line naked" href="{{BANDCAMP}}"><span class="log-id">AUDIO_ARCHIVE :</span><span class="log-tag">BANDCAMP</span></a>
+              <a class="log-line naked" href="{{GITHUB}}"><span class="log-id">SOURCE_REPO :</span><span class="log-tag">GITHUB</span></a>
             </div>
           </section>
 
         </div>
 
         <div class="bottombar" aria-label="bottom bar">
-          <div class="left">
-            PAGE: {{SEO_CANONICAL}}
+          <div class="left" id="footerLeft">
+            <span class="footer-left-main">UNAUTHORIZED USER_OVERRIDE DETECTED</span>
             <br />
-            META: {{SEO_DESCRIPTION}}
+            <span class="footer-left-canonical">CANONICAL: {{SEO_CANONICAL}}</span>
           </div>
-          <div class="right">
-            ACTIVITY_COMMS:
+          <div class="right" id="footerRight">
+            <span class="footer-right-activity">ACTIVITY_COMMS:</span>
             <br />
-            BUILD <b>OK</b> // NAV SYNC
+            <span class="footer-right-index">INDEX STATE <b>ONLINE</b></span>
             <br />
-            CORE ACTIVE SINCE <b id="system-uptime"></b>
+            <span class="footer-right-core">CORE ACTIVE SINCE <b id="system-uptime"></b></span>
           </div>
         </div>
 
@@ -162,9 +192,57 @@
     </div>
   </noscript>
 
+  <script>
+    (function () {
+      var stamp = document.getElementById("topbarLogStamp");
+      var scanBtn = document.getElementById("scanModeBtn");
+      var scanWrap = document.getElementById("avScan");
+      var modeSwitch = document.getElementById("activeViewModeSwitch");
+      var activeViewPanel = document.getElementById("activeViewPanel");
+      var activeViewBody = activeViewPanel ? activeViewPanel.querySelector(".bd") : null;
+      var topbarLeft = document.querySelector(".topbar .left");
+      var activeViewHeader = document.querySelector("#activeViewPanel .hd");
+      if (!stamp || !topbarLeft || !activeViewHeader || !scanBtn || !modeSwitch || !scanWrap || !activeViewPanel || !activeViewBody) return;
+
+      var mobileQuery = window.matchMedia("(max-width: 980px)");
+      var optionalLeftPill = topbarLeft.querySelector(".optional.deep");
+
+      function moveNode(node, parent, beforeNode) {
+        if (!node || !parent) return;
+        if (node.parentElement === parent && (!beforeNode || node.nextSibling === beforeNode)) return;
+        parent.insertBefore(node, beforeNode || null);
+      }
+
+      function placeStamp() {
+        moveNode(scanBtn, modeSwitch);
+        moveNode(scanWrap, activeViewPanel, activeViewBody);
+
+        if (mobileQuery.matches) {
+          moveNode(stamp, activeViewHeader);
+          scanBtn.classList.remove("mobile-topbar-scan");
+          stamp.classList.add("mobile-activeview-log-stamp");
+          return;
+        }
+
+        moveNode(stamp, topbarLeft, optionalLeftPill);
+        scanBtn.classList.remove("mobile-topbar-scan");
+        stamp.classList.remove("mobile-activeview-log-stamp");
+      }
+
+      placeStamp();
+      if (typeof mobileQuery.addEventListener === "function") {
+        mobileQuery.addEventListener("change", placeStamp);
+      } else if (typeof mobileQuery.addListener === "function") {
+        mobileQuery.addListener(placeStamp);
+      }
+      window.addEventListener("orientationchange", placeStamp);
+      window.addEventListener("resize", placeStamp);
+    })();
+  </script>
   <script src="/assets/js/bundle.js?v={{ASSET_VERSION}}" defer></script>
 </main>
 
 </body>
 </html>
+
 

@@ -1,15 +1,12 @@
 <!doctype html>
-<html lang="{{LANG}}">
+<html lang="{{LANG}}" data-phase="nominal">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="robots" content="noindex, nofollow, noarchive" />
-  <meta name="googlebot" content="noindex, nofollow, noarchive" />
   <meta name="theme-color" content="#050608" />
 
   <title>{{PAGE_TITLE}}</title>
   <meta name="description" content="{{DESCRIPTION}}" />
-
   <link rel="canonical" href="{{CANONICAL}}" />
 
   <meta property="og:title" content="{{OG_TITLE}}" />
@@ -23,10 +20,12 @@
   <meta name="twitter:description" content="{{OG_DESC}}" />
   <meta name="twitter:image" content="{{OG_IMAGE}}" />
 
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-latin-400.woff2" as="font" type="font/woff2" />
+
   <link rel="stylesheet" href="/assets/css/style.css?v={{ASSET_VERSION}}" />
   <script type="application/ld+json">{{JSONLD}}</script>
 </head>
-<body data-core-start="{{SYSTEM_CORE_START_UTC}}" data-layout="series">
+<body data-log-level="{{ACTIVE_LOG_ID}}" data-core-start="{{SYSTEM_CORE_START_UTC}}" data-layout="shell" data-page="series">
   <main aria-label="OX500 STATION interface">
 
   <div class="vignette" aria-hidden="true"></div>
@@ -39,85 +38,112 @@
         RENDER_OK
       </div>
 
+      <div class="live-feed-inline">
+        <span class="live-feed-label">LIVE_FEED</span>
+        <span class="live-feed-line" id="feed1">ARCHIVE BUS: STABLE LINK</span>
+      </div>
+
       <div class="grid grid-sidebars-wide">
         <div class="topbar" aria-label="system bar">
           <div class="left">
-            <span class="pill"><b>NODE</b> DISRUPTION</span>
-            <span class="pill">INDEX: PARTIAL</span>
-            <span class="pill">NODE: OX500_CORE</span>
+            <span class="pill" id="topbarNodePill">NODE: <b>OX500_CORE</b></span>
+            <span class="pill log-pill" id="topbarLogStamp">{{ACTIVE_LOG_ID}} {{ACTIVE_LOG_DATE}}</span>
+            <span class="pill optional deep">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
           </div>
           <div class="right">
+            <span class="topbar-status" id="topbarStatus" aria-hidden="true">
+              <span class="topbar-status-item">
+                <span class="topbar-status-icon" id="topbarStatusDriftIcon">⏱️</span>
+                <span class="topbar-status-value" id="topbarStatusDriftValue">+0.000</span>
+              </span>
+              <span class="topbar-status-item">
+                <span class="topbar-status-icon" id="topbarStatusAnomalyIcon">⚠️</span>
+                <span class="topbar-status-value" id="topbarStatusAnomalyValue">0.00</span>
+              </span>
+              <span class="topbar-status-item topbar-status-item-density">
+                <span class="topbar-status-icon" id="topbarStatusDensityIcon">📶</span>
+                <span class="topbar-status-value" id="topbarStatusDensityValue">0.00</span>
+              </span>
+              <span class="topbar-status-item topbar-status-item-phase">
+                <span class="topbar-status-icon phase-dot" id="topbarStatusPhaseIcon">🟢</span>
+              </span>
+            </span>
             <span class="pill optional deep">SYS <b id="sysVer">{{SYS_VER}}</b></span>
+            <span class="pill optional deep" id="topbarSensorPill">{{SENSOR_LABEL}} <span class="hot">{{SENSOR_CODE}}</span> INIT</span>
             <span class="pill time-pill">TIME <b id="clock">--:--:--</b></span>
-            <span class="pill optional deep">AVAILABLE <b id="avail">{{AVAILABLE_COUNT}}</b></span>
           </div>
         </div>
 
         <div class="leftcol left-column">
-          <section class="panel">
-            <div class="hd"><span class="tag">TRACE_INDEX</span><span>MEM</span></div>
-            <div class="bd mono">PROTOCOL: NODE_ENUMERATION
-ACCESS: CONDITIONAL
-MODE: READ_ONLY
-RULE: LOG EVERYTHING</div>
-          </section>
-
-          <section class="panel">
-            <div class="hd"><span class="tag">EXTERNAL</span><span>NET</span></div>
-            <div class="bd scroll">
-              <div class="meta-line">
-                <a class="meta-pill" href="{{BASE_URL}}/">HOME</a>
-                <a class="meta-pill" href="{{GITHUB}}">GITHUB</a>
-                <a class="meta-pill" href="{{YOUTUBE}}">YOUTUBE</a>
-                <a class="meta-pill" href="{{BANDCAMP}}">BANDCAMP</a>
-              </div>
-              <div class="meta-note">
-                THIS NODE IS A FILTER.<br />
-                LOGS REMAIN INTACT.
-              </div>
+          <section class="panel recent-logs" id="recentLogsPanel">
+            <div class="hd"><span class="tag">RECENT_LOGS</span><span>LIST</span></div>
+            <div class="bd" id="leftBlock2">
+              {{RECENT_LOGS}}
+              <span class="log-line naked recent-log-next">NEXT LOG IN: <b id="nextLogCountdown" data-next-log="{{NEXT_LOG_UTC}}">...</b></span>
             </div>
           </section>
-
+          <section class="panel recent-logs" id="disruptionNodesPanel">
+            <div class="hd"><span class="tag">DISRUPTION_NODES</span><span>SERIES</span></div>
+            <div class="bd" id="leftBlock3">
+              {{DISRUPTION_NODES}}
+            </div>
+          </section>
         </div>
 
         <div class="center">
           <div id="overlayLayer" aria-live="polite"></div>
-          <section class="hero" id="hero">
-            <h1 class="title" id="title">{{H1}}</h1>
-            <div class="subtitle">{{DESCRIPTION}}</div>
-
-            <div class="status" id="status">
-              <div class="line"><span class="key">ERROR_STATUS:</span> <span class="val">NODE ONLINE //</span> INDEX_LOADED</div>
-              <div class="line">STATUS_CONDITIONAL / <span class="val">SYSTEM_PARTIAL</span></div>
+          <section class="panel active-view-panel" id="activeViewPanel">
+            <div class="hd">
+              <span class="tag">ACTIVE_VIEW</span>
+              <div class="active-view-mode-switch" id="activeViewModeSwitch" role="group" aria-label="Active view mode">
+                <button type="button" class="panel-btn active-view-toggle-btn panel-hd-state-text" id="scanModeBtn" data-av-mode="scan" aria-controls="avScan" aria-expanded="false" aria-pressed="false" aria-label="Toggle LIVE and SCAN">
+                  <span class="mode-label mode-label-live">LIVE</span>
+                  <span class="active-view-mode-sep panel-hd-state-text" aria-hidden="true">/</span>
+                  <span class="mode-label mode-label-scan">SCAN</span>
+                </button>
+              </div>
             </div>
-
-            <div class="controls" aria-label="navigation">
-              <a class="btn primary" href="{{BASE_URL}}/" data-tab="home">CORE_LAYOUT</a>
-              <a class="btn" href="{{GITHUB}}" data-tab="src">SOURCE</a>
-              <a class="btn" href="{{YOUTUBE}}" data-tab="yt">TRANSMIT</a>
-              <a class="btn" href="{{BANDCAMP}}" data-tab="bc">NODE_AUDIO</a>
+            <div class="active-view-actions" hidden></div>
+            <div id="avScan" hidden>
+              <div id="scanInputWrapper">
+                <span class="scan-prefix">&gt; SCAN_QUERY:</span>
+                <input id="scanInput" type="text" autocomplete="off" placeholder="id / title / tag / disruption" />
+              </div>
+              <div id="scanResults" class="logs"></div>
             </div>
-
-            <div class="feed" aria-label="live feed">
-              <span class="label">LIVE_FEED</span>
-              <span class="item" id="feed1">ARCHIVE BUS: STABLE LINK</span>
-              <span class="item" id="feed2">NODE SYNC: NOMINAL</span>
-              <span class="item" id="feed3">CACHE VECTOR: ALIGNED</span>
+            <div class="bd scroll log-text" data-view-mode="entry" data-initial-log-id="{{ACTIVE_LOG_ID}}">
+              <div class="mobile-active-log-title" data-open-disruption-list="1" role="button" tabindex="0">
+                <span class="mobile-active-log-prefix">DISRUPTION //</span>
+                <span class="mobile-active-log-name">{{ACTIVE_DISRUPTION_TITLE}}</span>
+                <div class="mobile-active-log-entry">//{{ACTIVE_LOG_ENTRY_TITLE}}</div>
+              </div>
+              {{ACTIVE_LOG_TEXT}}
+              <div class="spacer-10"></div>
+              <div class="logs">{{NODE_LOG_LIST}}</div>
+            </div>
+            <div class="mobile-log-nav" aria-label="mobile log navigation">
+              <button type="button" class="mobile-log-nav-btn back" id="backFromSearchBtn" aria-label="Back to search results" hidden>&#8617; BACK</button>
+              <button type="button" class="mobile-log-nav-btn prev" id="mobilePrevLogBtn" aria-label="Previous log">&#9664; PREV</button>
+              <button type="button" class="mobile-log-nav-btn next" id="mobileNextLogBtn" aria-label="Next log">NEXT &#9654;</button>
             </div>
           </section>
+          <nav class="mobile-index-nav" aria-label="mobile index menu">
+            <a href="{{BASE_URL}}/" data-tab="core">CORE</a>
+            <a href="{{BASE_URL}}/#disruptionNodesPanel" data-tab="disruption">DISRUPTION</a>
+            <a href="{{BASE_URL}}/#activeViewPanel" data-tab="output">OUTPUT</a>
+          </nav>
 
-          <div class="dock dock-wide" aria-label="node log list">
-            <section class="panel">
-              <div class="hd"><span class="tag">NODE_LOG_LIST</span><span>MAP</span></div>
-              <div class="bd scroll" id="nodeList">
-                {{NODE_LOG_LIST}}
-              </div>
-            </section>
-          </div>
+          <section class="hero home-hero" id="hero">
+            <h1 class="title" id="title">OX500 STATION</h1>
+            <div class="status" id="status">
+              <div class="line"><span class="key">DISRUPTION:</span> <span class="val">{{H1}}</span></div>
+              <div class="line">LOG_COUNT / <span class="val">{{DISRUPTION_LOG_COUNT}}</span></div>
+            </div>
+          </section>
         </div>
 
         <div class="rightcol">
-          <section class="panel">
+          <section class="panel recent-logs">
             <div class="hd"><span class="tag">DIAGNOSTICS</span><span>STATE</span></div>
             <div class="bd mono" id="rightBlock1">
               <span class="diag-line log-line naked"><span class="log-id">TEMPORAL DRIFT:</span><span class="log-tag">+0.003</span></span>
@@ -129,29 +155,32 @@ RULE: LOG EVERYTHING</div>
             </div>
           </section>
 
-          <section class="panel">
+          <section class="panel recent-logs">
             <div class="hd"><span class="tag">INDEX</span><span>MAP</span></div>
             <div class="bd mono" id="rightBlock2">
-              <span class="log-line naked"><span class="log-id">NODE_LOGS :</span><span class="log-tag">LOADED</span></span>
-              <span class="log-line naked"><span class="log-id">LINKS :</span><span class="log-tag">ACTIVE</span></span>
-              <span class="log-line naked"><span class="log-id">MODE :</span><span class="log-tag">OBSERVE_ONLY</span></span>
+              <a class="log-line naked" href="{{BASE_URL}}/" data-tab="core"><span class="log-id">CORE :</span><span class="log-tag">CORE</span></a>
+              <a class="log-line naked" href="{{BASE_URL}}/#disruptionNodesPanel" data-tab="disruption"><span class="log-id">DISRUPTION :</span><span class="log-tag">DISRUPTION</span></a>
+              <span class="log-line naked"><span class="log-id">EXTERNAL_NODES</span><span class="log-tag"></span></span>
+              <a class="log-line naked" href="{{YOUTUBE}}"><span class="log-id">TRANSMISSIONS :</span><span class="log-tag">YOUTUBE</span></a>
+              <a class="log-line naked" href="{{BANDCAMP}}"><span class="log-id">AUDIO_ARCHIVE :</span><span class="log-tag">BANDCAMP</span></a>
+              <a class="log-line naked" href="{{GITHUB}}"><span class="log-id">SOURCE_REPO :</span><span class="log-tag">GITHUB</span></a>
             </div>
           </section>
 
         </div>
 
         <div class="bottombar" aria-label="bottom bar">
-          <div class="left">
-            PAGE: {{CANONICAL}}
+          <div class="left" id="footerLeft">
+            <span class="footer-left-main">UNAUTHORIZED USER_OVERRIDE DETECTED</span>
             <br />
-            NODE: {{H1}}
+            <span class="footer-left-canonical">CANONICAL: {{CANONICAL}}</span>
           </div>
-          <div class="right">
-            ACTIVITY_COMMS:
+          <div class="right" id="footerRight">
+            <span class="footer-right-activity">ACTIVITY_COMMS:</span>
             <br />
-            BUILD <b>OK</b> // NODE SYNC
+            <span class="footer-right-index">INDEX STATE <b>ONLINE</b></span>
             <br />
-            CORE ACTIVE SINCE <b id="system-uptime"></b>
+            <span class="footer-right-core">CORE ACTIVE SINCE <b id="system-uptime"></b></span>
           </div>
         </div>
 
@@ -165,6 +194,53 @@ RULE: LOG EVERYTHING</div>
     </div>
   </noscript>
 
+  <script>
+    (function () {
+      var stamp = document.getElementById("topbarLogStamp");
+      var scanBtn = document.getElementById("scanModeBtn");
+      var scanWrap = document.getElementById("avScan");
+      var modeSwitch = document.getElementById("activeViewModeSwitch");
+      var activeViewPanel = document.getElementById("activeViewPanel");
+      var activeViewBody = activeViewPanel ? activeViewPanel.querySelector(".bd") : null;
+      var topbarLeft = document.querySelector(".topbar .left");
+      var activeViewHeader = document.querySelector("#activeViewPanel .hd");
+      if (!stamp || !topbarLeft || !activeViewHeader || !scanBtn || !modeSwitch || !scanWrap || !activeViewPanel || !activeViewBody) return;
+
+      var mobileQuery = window.matchMedia("(max-width: 980px)");
+      var optionalLeftPill = topbarLeft.querySelector(".optional.deep");
+
+      function moveNode(node, parent, beforeNode) {
+        if (!node || !parent) return;
+        if (node.parentElement === parent && (!beforeNode || node.nextSibling === beforeNode)) return;
+        parent.insertBefore(node, beforeNode || null);
+      }
+
+      function placeStamp() {
+        moveNode(scanBtn, modeSwitch);
+        moveNode(scanWrap, activeViewPanel, activeViewBody);
+
+        if (mobileQuery.matches) {
+          moveNode(stamp, activeViewHeader);
+          scanBtn.classList.remove("mobile-topbar-scan");
+          stamp.classList.add("mobile-activeview-log-stamp");
+          return;
+        }
+
+        moveNode(stamp, topbarLeft, optionalLeftPill);
+        scanBtn.classList.remove("mobile-topbar-scan");
+        stamp.classList.remove("mobile-activeview-log-stamp");
+      }
+
+      placeStamp();
+      if (typeof mobileQuery.addEventListener === "function") {
+        mobileQuery.addEventListener("change", placeStamp);
+      } else if (typeof mobileQuery.addListener === "function") {
+        mobileQuery.addListener(placeStamp);
+      }
+      window.addEventListener("orientationchange", placeStamp);
+      window.addEventListener("resize", placeStamp);
+    })();
+  </script>
   <script src="/assets/js/bundle.js?v={{ASSET_VERSION}}" defer></script>
 </main>
 

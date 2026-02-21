@@ -76,9 +76,8 @@ function createDisruptionCache() {
 // === INIT ===
 
 export function initMobileLogs() {
-  const staticHomeHero = document.body?.dataset?.layout === 'home';
-  // Intencjonalnie tylko layout 'home' - inne templatki nie maja wymaganych elementow DOM.
-  if (!staticHomeHero || !window.matchMedia) return;
+  const shellLayout = document.body?.dataset?.layout === 'shell';
+  if (!shellLayout || !window.matchMedia) return;
 
   const mobileQuery = window.matchMedia(MOBILE_BREAKPOINT);
 

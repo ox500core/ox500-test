@@ -11,7 +11,18 @@ const PHASES = {
 };
 
 const PHASE_CLASSES = ['phase-nominal', 'phase-unstable', 'phase-incident'];
+const TRANSITION_CLASSES = [
+  'phase-transition',
+  'phase-transition-to-nominal',
+  'phase-transition-to-unstable',
+  'phase-transition-to-incident',
+];
 const PHASE_EVENTS = ['system:phase', 'diagnostics:update'];
+const PHASE_TRANSITION_MS = {
+  [PHASES.NOMINAL]: 240,
+  [PHASES.UNSTABLE]: 320,
+  [PHASES.INCIDENT]: 460,
+};
 
 function normalizePhase(value) {
   const phase = String(value || '').trim().toUpperCase();
@@ -26,21 +37,64 @@ function classNameForPhase(phase) {
 
 export function initSystemPhaseUi() {
   const body = document.body;
+  const root = document.documentElement;
   if (!body) return;
 
   let currentPhase = null;
+  let transitionTimer = null;
+  let transitionToken = 0;
 
-  function applyPhase(nextPhaseRaw) {
-    const nextPhase = normalizePhase(nextPhaseRaw);
-    if (nextPhase === currentPhase) return;
+  function clearTransitionState() {
+    body.classList.remove(...TRANSITION_CLASSES);
+    body.style.removeProperty('--phase-transition-ms');
+  }
 
+  function commitPhase(nextPhase) {
     currentPhase = nextPhase;
     body.classList.remove(...PHASE_CLASSES);
     body.classList.add(classNameForPhase(nextPhase));
     body.dataset.systemPhase = nextPhase.toLowerCase();
+    if (root) root.dataset.phase = nextPhase.toLowerCase();
   }
 
-  applyPhase(body.dataset.systemPhase || PHASES.NOMINAL);
+  function applyPhase(nextPhaseRaw) {
+    const nextPhase = normalizePhase(nextPhaseRaw);
+    if (nextPhase === currentPhase) return;
+    const prevPhase = currentPhase;
+
+    if (transitionTimer) {
+      clearTimeout(transitionTimer);
+      transitionTimer = null;
+    }
+
+    // First phase application should be immediate (no theatrics on boot paint).
+    if (!prevPhase) {
+      clearTransitionState();
+      commitPhase(nextPhase);
+      return;
+    }
+
+    const durationMs = PHASE_TRANSITION_MS[nextPhase] || 300;
+    const token = ++transitionToken;
+
+    clearTransitionState();
+    body.classList.add('phase-transition', `phase-transition-to-${nextPhase.toLowerCase()}`);
+    body.style.setProperty('--phase-transition-ms', `${durationMs}ms`);
+    bus.emit('system:phase-transition', {
+      from: prevPhase,
+      to: nextPhase,
+      durationMs,
+    });
+
+    transitionTimer = setTimeout(() => {
+      if (token !== transitionToken) return;
+      clearTransitionState();
+      commitPhase(nextPhase);
+      transitionTimer = null;
+    }, durationMs);
+  }
+
+  applyPhase(root?.dataset?.phase || body.dataset.systemPhase || PHASES.NOMINAL);
 
   PHASE_EVENTS.forEach((eventName) => {
     bus.on(eventName, (payload) => {
