@@ -35,22 +35,6 @@
   src:local("IBM Plex Mono SemiBold"),local("IBM Plex Mono"),url("/assets/fonts/ibm-plex-mono-latin-ext-600.woff2") format("woff2");
   unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
 }
-@font-face{
-  font-family:"IBM Plex Mono";
-  font-style:normal;
-  font-weight:700;
-  font-display:swap;
-  src:local("IBM Plex Mono Bold"),local("IBM Plex Mono"),url("/assets/fonts/ibm-plex-mono-latin-700.woff2") format("woff2");
-  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
-}
-@font-face{
-  font-family:"IBM Plex Mono";
-  font-style:normal;
-  font-weight:700;
-  font-display:swap;
-  src:local("IBM Plex Mono Bold"),local("IBM Plex Mono"),url("/assets/fonts/ibm-plex-mono-latin-ext-700.woff2") format("woff2");
-  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
-}
 
 :root {
   /* =========================================================
@@ -636,7 +620,7 @@ body.phase-unstable .frame::before{
   background:rgba(var(--black-rgb),.18);
   white-space:nowrap;
 }
-.pill b{color:var(--cyan);font-weight:700;}
+.pill b{color:var(--cyan);font-weight:600;}
 .pill .hot{color:var(--amber);}
 
 .panel{
@@ -708,7 +692,7 @@ body.phase-unstable .frame::before{
 
 .active-view-panel .panel-btn{
   color:rgba(var(--cyan-rgb),.92);
-  font:700 11px/1 var(--ox-font-mono);
+  font:600 11px/1 var(--ox-font-mono);
   letter-spacing:.18em;
   transition:text-shadow .12s ease,transform .12s ease;
 }
@@ -727,7 +711,7 @@ body.phase-unstable .frame::before{
 
 :where(body[data-layout="shell"]) .home-hero .controls .btn.bracket{
   color:rgba(var(--cyan-rgb),.92);
-  font:700 11px/1 var(--ox-font-mono);
+  font:600 11px/1 var(--ox-font-mono);
   letter-spacing:.18em;
   transition:text-shadow .12s ease,transform .12s ease;
 }
@@ -766,7 +750,7 @@ body.phase-unstable .frame::before{
 .active-view-panel .hd .active-view-toggle-btn .mode-label-live{
   color:var(--ink-dim);
   text-shadow:none;
-  font-weight:700;
+  font-weight:600;
 }
 .active-view-panel .hd .active-view-toggle-btn .mode-label-scan{
   color:rgba(var(--ink-rgb),.34);
@@ -779,7 +763,7 @@ body.phase-unstable .frame::before{
 .active-view-panel .hd .active-view-toggle-btn.is-scan .mode-label-scan{
   color:var(--ink-dim);
   text-shadow:none;
-  font-weight:700;
+  font-weight:600;
 }
 
 .active-view-panel .hd .active-view-toggle-btn:focus-visible{
@@ -931,7 +915,7 @@ body.phase-unstable .frame::before{
   align-items:center;
   color:rgba(var(--ink-rgb),.72);
   text-decoration:none;
-  font:700 11px/1.2 var(--ox-font-mono);
+  font:600 11px/1.2 var(--ox-font-mono);
   letter-spacing:.14em;
   text-transform:uppercase;
 }
@@ -1524,7 +1508,7 @@ a.log-link-text.naked{
 #rightBlock1 .diag-line + .diag-line{
   margin-top:var(--space-1);
 }
-#rightBlock1 .diag-phase-value{font-weight:700;}
+#rightBlock1 .diag-phase-value{font-weight:600;}
 #rightBlock1 .diag-phase-value.diag-phase-nominal{color:var(--cyan);}
 #rightBlock1 .diag-phase-value.diag-phase-unstable{color:rgba(170,193,168,.94);}
 #rightBlock1 .diag-phase-value.diag-phase-incident{color:rgba(255,158,126,.98);}
@@ -1787,17 +1771,17 @@ a:focus-visible{
   color:rgba(var(--cyan-rgb),.94);
   font-size:12px;
   letter-spacing:.16em;
-  font-weight:700;
+  font-weight:600;
   line-height:1.35;
   transition:background-color .12s ease,box-shadow .12s ease;
 }
 :where(body[data-layout="shell"]) #activeViewPanel .bd .mobile-active-log-title .mobile-active-log-prefix{color:rgba(var(--amber-rgb),.92);}
-:where(body[data-layout="shell"]) #activeViewPanel .bd .mobile-active-log-title .mobile-active-log-name{color:rgba(var(--cyan-rgb),.94);font-weight:700;}
+:where(body[data-layout="shell"]) #activeViewPanel .bd .mobile-active-log-title .mobile-active-log-name{color:rgba(var(--cyan-rgb),.94);font-weight:600;}
 :where(body[data-layout="shell"]) #activeViewPanel .bd .mobile-active-log-title .mobile-active-log-link{
   cursor:pointer;
   pointer-events:auto;
   color:rgba(var(--link-rgb),.94);
-  font-weight:700;
+  font-weight:600;
   text-decoration:none;
   transition:text-shadow .12s ease;
 }
@@ -1918,7 +1902,7 @@ a:focus-visible{
   :where(body[data-layout="shell"]) .topbar .panel-btn.mobile-topbar-scan .mode-label-live{
     color:var(--ink-dim);
     text-shadow:none;
-    font-weight:700;
+    font-weight:600;
     transition:color .12s ease,text-shadow .12s ease;
   }
   :where(body[data-layout="shell"]) .topbar .panel-btn.mobile-topbar-scan .mode-label-scan{
@@ -1934,7 +1918,7 @@ a:focus-visible{
   :where(body[data-layout="shell"]) .topbar .panel-btn.mobile-topbar-scan.is-scan .mode-label-scan{
     color:var(--ink-dim);
     text-shadow:none;
-    font-weight:700;
+    font-weight:600;
   }
 
   :where(body[data-layout="shell"]) .topbar .panel-btn.mobile-topbar-scan:hover{
