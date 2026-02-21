@@ -1664,7 +1664,7 @@ def stage_build_home_and_exports(
 def stage_write_robots_and_sitemap(base_url: str, logs_sorted: list, sitemap_entries: list) -> None:
     write_text(
         DIST / "robots.txt",
-        f"User-agent: *\nAllow: /\n\nSitemap: {base_url}/sitemap.xml\n",
+        f"User-agent: *\nDisallow: /\n\nSitemap: {base_url}/sitemap.xml\n",
     )
 
     if logs_sorted:
