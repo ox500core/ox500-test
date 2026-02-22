@@ -20,9 +20,12 @@ const CRITICAL_INITIALIZERS = [
   initUptime,
   initTopbarStatus,
   initSystemPhaseUi,
-  initMobileLogs,
   initNextLogLabel,
   initLayoutPlacement,
+];
+
+const POST_PAINT_INITIALIZERS = [
+  initMobileLogs,
 ];
 
 const DEFERRED_INITIALIZERS = [
@@ -33,43 +36,63 @@ const DEFERRED_INITIALIZERS = [
 ];
 
 const isMobile = window.matchMedia?.('(max-width: 980px), (hover:none) and (pointer:coarse)').matches ?? false;
+const deferredDelayMs = isMobile ? 2500 : 2800;
+const postPaintDelayMs = isMobile ? 120 : 220;
+
+function runInitializerQueue(tasks, options = {}) {
+  const queue = [...tasks];
+  if (!queue.length) {
+    return;
+  }
+
+  const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : 1000;
+  const fallbackDelayMs = Number.isFinite(options.fallbackDelayMs) ? options.fallbackDelayMs : 50;
+
+  const runOne = () => {
+    const initFn = queue.shift();
+    if (typeof initFn === 'function') {
+      initFn();
+    }
+  };
+
+  if (typeof window.requestIdleCallback === 'function') {
+    const runChunk = (deadline) => {
+      while (queue.length && deadline.timeRemaining() > 0) {
+        runOne();
+      }
+      if (queue.length) {
+        window.requestIdleCallback(runChunk, { timeout: timeoutMs });
+      }
+    };
+    window.requestIdleCallback(runChunk, { timeout: timeoutMs });
+    return;
+  }
+
+  const runFallbackChunk = () => {
+    runOne();
+    if (queue.length) {
+      window.setTimeout(runFallbackChunk, fallbackDelayMs);
+    }
+  };
+  runFallbackChunk();
+}
 
 CRITICAL_INITIALIZERS.forEach((initFn) => {
   initFn();
 });
 
-const deferredDelayMs = isMobile ? 2500 : 2800;
-
 function runDeferredInitializers() {
-  const tasks = [...DEFERRED_INITIALIZERS];
-  if (!tasks.length) {
-    return;
-  }
+  runInitializerQueue(DEFERRED_INITIALIZERS, { timeoutMs: 1000, fallbackDelayMs: 50 });
+}
 
-  const runOne = (initFn) => {
-    initFn();
-  };
+function runPostPaintInitializers() {
+  runInitializerQueue(POST_PAINT_INITIALIZERS, { timeoutMs: 900, fallbackDelayMs: 30 });
+}
 
-  if (typeof window.requestIdleCallback === 'function') {
-    const runChunk = (deadline) => {
-      while (tasks.length && deadline.timeRemaining() > 0) {
-        runOne(tasks.shift());
-      }
-      if (tasks.length) {
-        window.requestIdleCallback(runChunk, { timeout: 1000 });
-      }
-    };
-    window.requestIdleCallback(runChunk, { timeout: 1000 });
-    return;
-  }
-
-  const runFallbackChunk = () => {
-    runOne(tasks.shift());
-    if (tasks.length) {
-      window.setTimeout(runFallbackChunk, 50);
-    }
-  };
-  runFallbackChunk();
+if (typeof window.requestIdleCallback === 'function') {
+  window.requestIdleCallback(runPostPaintInitializers, { timeout: postPaintDelayMs });
+} else {
+  window.setTimeout(runPostPaintInitializers, postPaintDelayMs);
 }
 
 if (typeof window.requestIdleCallback === 'function') {
