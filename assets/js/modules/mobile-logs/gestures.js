@@ -6,40 +6,26 @@ import { GESTURE_CONFIG } from './config.js';
 import {
   renderDisruptionList,
   renderEntry,
-  getCurrentEntry,
-  disruptionKey,
-  setLogStamp,
 } from './renderer.js';
 import {
   isLoaded,
   ensureLoaded,
-  getLogs,
   getOrderedIds,
   getLogsById,
   resolveCurrentIndex,
   setCurrentEntryId,
   setFromSearch,
   isFromDisruption,
-  loadPage,
-  maxLoadedPage,
-  minLoadedPage,
-  getState,
   maybePrefetchAroundListIndex,
 } from './store.js';
+import {
+  buildDisruptionState,
+  buildDisruptionEntryList,
+  applyDisruptionListTarget,
+  maybeLoadAdjacentPageForDirection,
+} from './navigation.js';
 
 // === HELPERS ===
-
-function normalizedId(value) {
-  return String(value || '').replace(/\D/g, '');
-}
-
-function numericId(value) {
-  return Number(normalizedId(value));
-}
-
-function sortEntriesByIdAsc(entries) {
-  return entries.slice().sort((a, b) => numericId(a?.id) - numericId(b?.id));
-}
 
 function vibrateTap(mobileQuery, ms = 10) {
   try {
@@ -59,6 +45,70 @@ function isInteractiveTarget(target) {
 
 // === STEP NAVIGATION ===
 
+async function stepInDisruptionList(direction, els, mobileQuery, stampEl, updateControls) {
+  let currentState = buildDisruptionState(stampEl);
+  if (!currentState) return true;
+
+  void maybePrefetchAroundListIndex(currentState.currentDisruptionIndex, currentState.disruptionOrder.length, 10);
+
+  let targetDisruptionIndex = currentState.currentDisruptionIndex + direction;
+  if (targetDisruptionIndex < 0 || targetDisruptionIndex >= currentState.disruptionOrder.length) {
+    await maybePrefetchAroundListIndex(currentState.currentDisruptionIndex, currentState.disruptionOrder.length, 10);
+    currentState = buildDisruptionState(stampEl);
+    if (!currentState) return true;
+    targetDisruptionIndex = currentState.currentDisruptionIndex + direction;
+    if (targetDisruptionIndex < 0 || targetDisruptionIndex >= currentState.disruptionOrder.length) return true;
+  }
+
+  const targetKey = currentState.disruptionOrder[targetDisruptionIndex];
+  const target = currentState.newestByKey.get(targetKey);
+  if (!target?.entry) return true;
+
+  applyDisruptionListTarget(target.entry, stampEl, setCurrentEntryId);
+  renderDisruptionList(els, mobileQuery, target.entry, stampEl);
+  updateControls();
+  return true;
+}
+
+async function stepInDisruptionEntry(direction, els, mobileQuery, stampEl, recentLogsRoot, updateControls) {
+  let disruptionState = buildDisruptionEntryList(stampEl);
+  if (!disruptionState) return true;
+
+  let targetIdx = disruptionState.currentIdx + direction;
+  if (targetIdx < 0 || targetIdx >= disruptionState.list.length) {
+    await maybeLoadAdjacentPageForDirection(direction);
+    disruptionState = buildDisruptionEntryList(stampEl);
+    if (!disruptionState) return true;
+    targetIdx = disruptionState.currentIdx + direction;
+    if (targetIdx < 0 || targetIdx >= disruptionState.list.length) return true;
+  }
+
+  const targetEntry = disruptionState.list[targetIdx];
+  if (!targetEntry) return true;
+  setFromSearch(false);
+  renderEntry(els, mobileQuery, targetEntry, stampEl, recentLogsRoot, updateControls);
+  return true;
+}
+
+async function stepInGlobalEntry(direction, els, mobileQuery, stampEl, recentLogsRoot, updateControls) {
+  let currentIndex = resolveCurrentIndex(stampEl);
+  if (currentIndex < 0) return true;
+
+  let nextIndex = currentIndex + direction;
+
+  if (nextIndex < 0 || nextIndex >= getOrderedIds().length) {
+    await maybeLoadAdjacentPageForDirection(direction);
+    currentIndex = resolveCurrentIndex(stampEl);
+    nextIndex = currentIndex + direction;
+  }
+
+  if (nextIndex < 0 || nextIndex >= getOrderedIds().length) return true;
+  const nextId = getOrderedIds()[nextIndex];
+  setFromSearch(false);
+  renderEntry(els, mobileQuery, getLogsById().get(nextId), stampEl, recentLogsRoot, updateControls);
+  return true;
+}
+
 export async function stepBy(
   direction,
   els,
@@ -68,137 +118,16 @@ export async function stepBy(
   updateControls,
 ) {
   if (els?.textEl?.dataset?.viewMode === 'disruption-list') {
-    const buildDisruptionState = () => {
-      const currentEntry = getCurrentEntry(stampEl);
-      const currentKey = disruptionKey(currentEntry);
-      if (!currentKey) return null;
-
-      const newestByKey = new Map();
-      getLogs().forEach((entry) => {
-        const key = disruptionKey(entry);
-        if (!key) return;
-        const idNum = numericId(entry?.id);
-        const prev = newestByKey.get(key);
-        if (!prev || idNum > prev.idNum) {
-          newestByKey.set(key, { idNum, entry });
-        }
-      });
-
-      const disruptionOrder = Array.from(newestByKey.entries())
-        .sort((a, b) => a[1].idNum - b[1].idNum)
-        .map(([key]) => key);
-
-      const currentDisruptionIndex = disruptionOrder.indexOf(currentKey);
-      if (currentDisruptionIndex < 0) return null;
-
-      return { newestByKey, disruptionOrder, currentDisruptionIndex };
-    };
-
-    let currentState = buildDisruptionState();
-    if (!currentState) return;
-
-    void maybePrefetchAroundListIndex(currentState.currentDisruptionIndex, currentState.disruptionOrder.length, 10);
-
-    let targetDisruptionIndex = currentState.currentDisruptionIndex + direction;
-    if (targetDisruptionIndex < 0 || targetDisruptionIndex >= currentState.disruptionOrder.length) {
-      await maybePrefetchAroundListIndex(currentState.currentDisruptionIndex, currentState.disruptionOrder.length, 10);
-      currentState = buildDisruptionState();
-      if (!currentState) return;
-      targetDisruptionIndex = currentState.currentDisruptionIndex + direction;
-      if (targetDisruptionIndex < 0 || targetDisruptionIndex >= currentState.disruptionOrder.length) return;
-    }
-
-    const targetKey = currentState.disruptionOrder[targetDisruptionIndex];
-    const target = currentState.newestByKey.get(targetKey);
-    if (!target?.entry) return;
-
-    const targetId = normalizedId(target.entry.id);
-    if (targetId) {
-      setCurrentEntryId(targetId);
-      if (document.body) document.body.dataset.logLevel = targetId;
-    }
-    setLogStamp(stampEl, target.entry?.id || '----', target.entry?.date || '----');
-
-    renderDisruptionList(els, mobileQuery, target.entry, stampEl);
-    updateControls();
+    await stepInDisruptionList(direction, els, mobileQuery, stampEl, updateControls);
     return;
   }
 
   if (isFromDisruption()) {
-    const buildDisruptionEntryList = () => {
-      const currentEntry = getCurrentEntry(stampEl);
-      const currentKey = disruptionKey(currentEntry);
-      if (!currentEntry || !currentKey) return null;
-
-      const list = getLogs()
-        .filter((entry) => disruptionKey(entry) === currentKey)
-        .slice();
-      const sortedList = sortEntriesByIdAsc(list);
-
-      if (!sortedList.length) return null;
-      const currentId = normalizedId(currentEntry?.id);
-      const currentIdx = sortedList.findIndex((entry) => normalizedId(entry?.id) === currentId);
-      if (currentIdx < 0) return null;
-      return { list: sortedList, currentIdx };
-    };
-
-    const state = getState();
-    let disruptionState = buildDisruptionEntryList();
-    if (!disruptionState) return;
-
-    let targetIdx = disruptionState.currentIdx + direction;
-    if (targetIdx < 0 || targetIdx >= disruptionState.list.length) {
-      if (direction < 0) {
-        const olderPage = maxLoadedPage() + 1;
-        if (olderPage <= state.totalPages) await loadPage(olderPage);
-      } else if (direction > 0) {
-        const newerPage = minLoadedPage() - 1;
-        if (newerPage >= 1) await loadPage(newerPage);
-      }
-
-      disruptionState = buildDisruptionEntryList();
-      if (!disruptionState) return;
-      targetIdx = disruptionState.currentIdx + direction;
-      if (targetIdx < 0 || targetIdx >= disruptionState.list.length) return;
-    }
-
-    const targetEntry = disruptionState.list[targetIdx];
-    if (!targetEntry) return;
-    setFromSearch(false);
-    renderEntry(els, mobileQuery, targetEntry, stampEl, recentLogsRoot, updateControls);
+    await stepInDisruptionEntry(direction, els, mobileQuery, stampEl, recentLogsRoot, updateControls);
     return;
   }
 
-  const state = getState();
-  let currentIndex = resolveCurrentIndex(stampEl);
-  if (currentIndex < 0) return;
-
-  let nextIndex = currentIndex + direction;
-
-  if (nextIndex < 0) {
-    const olderPage = maxLoadedPage() + 1;
-    if (olderPage <= state.totalPages) {
-      const ok = await loadPage(olderPage);
-      if (ok) {
-        currentIndex = resolveCurrentIndex(stampEl);
-        nextIndex = currentIndex + direction;
-      }
-    }
-  } else if (nextIndex >= getOrderedIds().length) {
-    const newerPage = minLoadedPage() - 1;
-    if (newerPage >= 1) {
-      const ok = await loadPage(newerPage);
-      if (ok) {
-        currentIndex = resolveCurrentIndex(stampEl);
-        nextIndex = currentIndex + direction;
-      }
-    }
-  }
-
-  if (nextIndex < 0 || nextIndex >= getOrderedIds().length) return;
-  const nextId = getOrderedIds()[nextIndex];
-  setFromSearch(false);
-  renderEntry(els, mobileQuery, getLogsById().get(nextId), stampEl, recentLogsRoot, updateControls);
+  await stepInGlobalEntry(direction, els, mobileQuery, stampEl, recentLogsRoot, updateControls);
 }
 
 // === TOUCH EVENT HANDLERS ===

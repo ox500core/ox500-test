@@ -108,13 +108,13 @@
             <div class="active-view-actions" hidden></div>
             <div id="avScan" hidden>
               <div id="scanInputWrapper">
-                <span class="scan-prefix">&gt; SCAN_QUERY:</span>
+                <label class="scan-prefix" for="scanInput">&gt; SCAN_QUERY:</label>
                 <input id="scanInput" type="text" autocomplete="off" placeholder="id / title / tag / disruption" />
               </div>
               <div id="scanResults" class="logs"></div>
             </div>
             <div class="bd scroll log-text" data-view-mode="entry" data-initial-log-id="{{ACTIVE_LOG_ID}}">
-              <div class="mobile-active-log-title" data-open-disruption-list="1" role="button" tabindex="0">
+              <div class="mobile-active-log-title" data-open-disruption-list="1" role="button" tabindex="0" aria-label="Open disruption log list">
                 <span class="mobile-active-log-prefix">DISRUPTION //</span>
                 <span class="mobile-active-log-name">{{ACTIVE_DISRUPTION_TITLE}}</span>
                 <div class="mobile-active-log-entry">//{{ACTIVE_LOG_ENTRY_TITLE}}</div>

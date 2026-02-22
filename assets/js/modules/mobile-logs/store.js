@@ -6,6 +6,12 @@
 import { utils } from '../../core/utils.js';
 import { fetchLogsPagesMeta, fetchLogsPage } from '../../core/logs-loader.js';
 import { bus } from '../../core/event-bus.js';
+import {
+  getLoadedPageBoundary,
+  resolveStampId,
+  rebuildFromLoadedPages,
+  computePrefetchPages,
+} from './store-internals.js';
 
 // === STATE ===
 
@@ -31,20 +37,6 @@ const state = {
   fromDisruption: false,
 };
 
-function numericId(value) {
-  return Number(utils.normalizeId(value));
-}
-
-function getLoadedPageBoundary(comparator) {
-  if (!state.loadedPages.size) return 0;
-  return comparator(...state.loadedPages);
-}
-
-function resolveStampId(stampEl) {
-  const stampMatch = (stampEl?.textContent || '').match(/(?:\bLOG\b\s+)?(\d+)/i);
-  return utils.normalizeId(stampMatch ? stampMatch[1] : '');
-}
-
 // === READ ===
 
 export function getState() { return state; }
@@ -61,11 +53,11 @@ export function isFromDisruption() { return state.fromDisruption; }
 export function setFromDisruption(v) { state.fromDisruption = Boolean(v); }
 
 export function maxLoadedPage() {
-  return getLoadedPageBoundary(Math.max);
+  return getLoadedPageBoundary(state.loadedPages, Math.max);
 }
 
 export function minLoadedPage() {
-  return getLoadedPageBoundary(Math.min);
+  return getLoadedPageBoundary(state.loadedPages, Math.min);
 }
 
 export function resolveCurrentIndex(stampEl) {
@@ -75,28 +67,6 @@ export function resolveCurrentIndex(stampEl) {
   if (!currentId) return state.orderedIds.length - 1;
   const idx = state.orderedIds.indexOf(currentId);
   return idx >= 0 ? idx : state.orderedIds.length - 1;
-}
-
-// === WRITE ===
-
-function rebuildFromLoadedPages() {
-  const uniqueById = new Map();
-  const pages = Array.from(state.loadedPages).sort((a, b) => a - b);
-
-  pages.forEach((pageNum) => {
-    const part = state.pagePayloads.get(pageNum);
-    if (!Array.isArray(part) || !part.length) return;
-    part.forEach((entry) => {
-      const id = utils.normalizeId(entry?.id);
-      if (!id || uniqueById.has(id)) return;
-      uniqueById.set(id, entry);
-    });
-  });
-
-  const sorted = Array.from(uniqueById.entries()).sort((a, b) => numericId(a[0]) - numericId(b[0]));
-  state.logs = sorted.map(([, entry]) => entry);
-  state.logsById = new Map(sorted);
-  state.orderedIds = sorted.map(([id]) => id);
 }
 
 // === LOADING ===
@@ -115,7 +85,7 @@ export async function loadPage(pageNum) {
       if (!Array.isArray(page) || !page.length) return false;
       state.pagePayloads.set(pageNum, page);
       state.loadedPages.add(pageNum);
-      rebuildFromLoadedPages();
+      rebuildFromLoadedPages(state);
       bus.emit('logs:pageLoaded', { page: pageNum });
       return true;
     } catch (_) {
@@ -199,22 +169,8 @@ export function maybePrefetchAroundCurrent(stampEl) {
 }
 
 export async function maybePrefetchAroundListIndex(currentIndex, totalLength, edgeThreshold = 5) {
-  if (!state.loaded || !state.totalPages || !Number.isFinite(currentIndex) || !Number.isFinite(totalLength)) return;
-  if (totalLength <= 0 || currentIndex < 0) return;
-
-  const threshold = Math.max(0, Number(edgeThreshold) || 0);
-  const nearStart = currentIndex <= threshold;
-  const nearEnd = (totalLength - 1 - currentIndex) <= threshold;
-
-  const jobs = [];
-  if (nearStart) {
-    const nextOlderPage = maxLoadedPage() + 1;
-    if (nextOlderPage <= state.totalPages) jobs.push(loadPage(nextOlderPage));
-  }
-  if (nearEnd) {
-    const nextNewerPage = minLoadedPage() - 1;
-    if (nextNewerPage >= 1) jobs.push(loadPage(nextNewerPage));
-  }
+  const pages = computePrefetchPages(state, currentIndex, totalLength, edgeThreshold);
+  const jobs = pages.map((pageNum) => loadPage(pageNum));
 
   if (jobs.length) await Promise.all(jobs);
 }

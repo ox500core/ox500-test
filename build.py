@@ -895,7 +895,9 @@ def run_checked_process(cmd: list[str], *, error_label: str) -> subprocess.Compl
 
 
 def stage_minify_css() -> None:
-    css_src = ASSETS_SRC / "css" / "style.css"
+    css_main = ASSETS_SRC / "css" / "style.css"
+    css_core = ASSETS_SRC / "css" / "style-core.css"
+    css_src = css_core if css_core.exists() else css_main
     css_dst = ASSETS_CSS_DIST
 
     if not css_src.exists():

@@ -17,6 +17,7 @@ import { initSystemPhaseUi } from './modules/system-phase-ui.js';
 import { initDiagnostics } from './modules/diagnostics.js';
 import { initFeed }        from './modules/feed.js';
 import { initGlitch }      from './modules/glitch.js';
+import { initAnomalyEngine } from './modules/anomaly-engine.js';
 import { initMobileLogs }  from './modules/mobile-logs/index.js';
 import { initNextLogLabel } from './modules/next-log-label.js';
 
@@ -38,6 +39,7 @@ const DEFERRED_INITIALIZERS = [
   initDiagnostics,
   initFeed,
   initGlitch,
+  initAnomalyEngine,
 ];
 const isMobile = window.matchMedia?.('(max-width: 980px), (hover:none) and (pointer:coarse)').matches ?? false;
 

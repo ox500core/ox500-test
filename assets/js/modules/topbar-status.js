@@ -117,6 +117,7 @@ export function initTopbarStatus() {
   function setExpanded(expanded) {
     root.classList.toggle(STATUS_EXPANDED_CLASS, expanded);
     topbar.classList.toggle(TOPBAR_OPEN_CLASS, expanded);
+    phaseIconEl.setAttribute('aria-expanded', expanded ? 'true' : 'false');
     if (!expanded) {
       topbar.classList.remove(TOPBAR_COVERING_CLASS);
       setLogNodeText(true);
@@ -129,8 +130,21 @@ export function initTopbarStatus() {
     window.setTimeout(scheduleCoveringUpdate, 50);
   }
 
+  phaseIconEl.setAttribute('role', 'button');
+  phaseIconEl.setAttribute('tabindex', '0');
+  phaseIconEl.setAttribute('aria-label', 'Toggle diagnostics details');
+  phaseIconEl.setAttribute('aria-expanded', 'false');
+
   phaseIconEl.addEventListener('click', (event) => {
     if (!isNarrowMobile()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setExpanded(!root.classList.contains(STATUS_EXPANDED_CLASS));
+  });
+
+  phaseIconEl.addEventListener('keydown', (event) => {
+    if (!isNarrowMobile()) return;
+    if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
     event.stopPropagation();
     setExpanded(!root.classList.contains(STATUS_EXPANDED_CLASS));

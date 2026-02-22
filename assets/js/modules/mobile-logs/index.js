@@ -34,44 +34,7 @@ import {
 import { initGestureListeners } from './gestures.js';
 import { initScannerListeners, openScan } from './scanner.js';
 import { MOBILE_BREAKPOINT } from './config.js';
-
-function normalizedId(value) {
-  return String(value || '').replace(/\D/g, '');
-}
-
-function numericId(value) {
-  return Number(normalizedId(value));
-}
-
-function applyNavButtonState(button, enabled) {
-  if (!button) return;
-  button.disabled = !enabled;
-  button.classList.toggle('disabled', !enabled);
-}
-
-function buildDisruptionOrderMap(logs) {
-  const newestByKey = new Map();
-  logs.forEach((entry) => {
-    const key = disruptionKey(entry);
-    if (!key) return;
-    const idNum = numericId(entry?.id);
-    const previous = newestByKey.get(key);
-    if (!previous || idNum > previous.idNum) newestByKey.set(key, { idNum, entry });
-  });
-  const disruptionOrder = Array.from(newestByKey.entries())
-    .sort((a, b) => a[1].idNum - b[1].idNum)
-    .map(([key]) => key);
-  return { newestByKey, disruptionOrder };
-}
-
-function createDisruptionCache() {
-  return {
-    key: '',
-    disruptionOrder: [],
-    newestByKey: new Map(),
-    entriesByKey: new Map(),
-  };
-}
+import { createMobileNavController } from './nav.js';
 
 // === INIT ===
 
@@ -125,123 +88,55 @@ export function initMobileLogs() {
     attributes: true,
     attributeFilter: ['data-view-mode'],
   });
-  const disruptionCache = createDisruptionCache();
-
-  function getLogsVersionKey() {
-    const logs = getLogs();
-    if (!logs.length) return '0';
-    return `${logs.length}:${logs[0]?.id || ''}:${logs[logs.length - 1]?.id || ''}`;
-  }
-
-  function getDisruptionData() {
-    const key = getLogsVersionKey();
-    if (disruptionCache.key === key) return disruptionCache;
-
-    const logs = getLogs();
-    const { newestByKey, disruptionOrder } = buildDisruptionOrderMap(logs);
-    const entriesByKey = new Map();
-    logs.forEach((entry) => {
-      const dKey = disruptionKey(entry);
-      if (!dKey) return;
-      if (!entriesByKey.has(dKey)) entriesByKey.set(dKey, []);
-      entriesByKey.get(dKey).push(entry);
-    });
-
-    disruptionCache.key = key;
-    disruptionCache.disruptionOrder = disruptionOrder;
-    disruptionCache.newestByKey = newestByKey;
-    disruptionCache.entriesByKey = entriesByKey;
-    return disruptionCache;
-  }
-
-  // === CONTROLS ===
-
-  function updateControls() {
-    if (!prevBtn || !nextBtn) return;
-    if (backFromSearchBtn) {
-      const inEntryMode = textEl?.dataset?.viewMode === 'entry';
-      const backToSearch = Boolean(isFromSearch() && inEntryMode);
-      const backToDisruption = Boolean(isFromDisruption() && inEntryMode);
-      const showBack = backToSearch || backToDisruption;
-      backFromSearchBtn.hidden = !showBack;
-      if (showBack) {
-        backFromSearchBtn.textContent = '↩ BACK';
-        backFromSearchBtn.setAttribute('aria-label', backToSearch ? 'Back to search results' : 'Back to disruption list');
-      }
-    }
-    if (!isLoaded() || !getOrderedIds().length) {
-      prevBtn.disabled = false;
-      nextBtn.disabled = false;
-      prevBtn.classList.remove('disabled');
-      nextBtn.classList.remove('disabled');
-      return;
-    }
-
-    if (textEl?.dataset?.viewMode === 'disruption-list') {
-      const currentEntry = getCurrentEntry(stampEl);
-      const currentKey = disruptionKey(currentEntry);
-      if (!currentKey) {
-        prevBtn.disabled = true;
-        nextBtn.disabled = true;
-        prevBtn.classList.add('disabled');
-        nextBtn.classList.add('disabled');
-        return;
-      }
-
-      const { disruptionOrder } = getDisruptionData();
-      const idx = disruptionOrder.indexOf(currentKey);
-      const canPrev = idx > 0;
-      const canNext = idx >= 0 && idx < disruptionOrder.length - 1;
-
-      if (idx >= 0) {
-        void maybePrefetchAroundListIndex(idx, disruptionOrder.length, 10);
-      }
-
-      applyNavButtonState(prevBtn, canPrev);
-      applyNavButtonState(nextBtn, canNext);
-      return;
-    }
-
-    if (textEl?.dataset?.viewMode === 'entry' && isFromDisruption()) {
-      const currentEntry = getCurrentEntry(stampEl);
-      const currentKey = disruptionKey(currentEntry);
-      if (currentEntry && currentKey) {
-        const { entriesByKey } = getDisruptionData();
-        const list = entriesByKey.get(currentKey) || [];
-
-        const currentId = normalizedId(currentEntry?.id);
-        const idx = list.findIndex((entry) => normalizedId(entry?.id) === currentId);
-
-        if (idx >= 0) {
-          void maybePrefetchAroundListIndex(idx, list.length, 10);
-          const canPrev = idx > 0;
-          const canNext = idx < list.length - 1;
-          applyNavButtonState(prevBtn, canPrev);
-          applyNavButtonState(nextBtn, canNext);
-          return;
-        }
-      }
-    }
-
-    const idx = resolveCurrentIndex(stampEl);
-    const canPrev = idx > 0;
-    const canNext = idx >= 0 && idx < getOrderedIds().length - 1;
-
-    applyNavButtonState(prevBtn, canPrev);
-    applyNavButtonState(nextBtn, canNext);
-  }
-
+  const navController = createMobileNavController({
+    textEl,
+    stampEl,
+    prevBtn,
+    nextBtn,
+    backFromSearchBtn,
+    isFromSearch,
+    isFromDisruption,
+    isLoaded,
+    getOrderedIds,
+    resolveCurrentIndex,
+    getLogs,
+    maybePrefetchAroundListIndex,
+    getCurrentEntry,
+    disruptionKey,
+  });
+  const { updateControls } = navController;
   // === CURRENT ENTRY GETTER ===
 
   function _getCurrentEntry() {
     return getCurrentEntry(stampEl);
   }
 
-  function getLatestDisruptionEntry() {
-    const { disruptionOrder, newestByKey } = getDisruptionData();
-    if (!disruptionOrder.length) return null;
-    const latestKey = disruptionOrder[disruptionOrder.length - 1];
-    return newestByKey.get(latestKey)?.entry || null;
+  function setNavigationOrigin(fromSearch, fromDisruption) {
+    setFromSearch(Boolean(fromSearch));
+    setFromDisruption(Boolean(fromDisruption));
+  }
+
+  function showEntry(entry, fromSearch, fromDisruption) {
+    if (!entry) return;
+    setNavigationOrigin(fromSearch, fromDisruption);
+    renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, updateControls);
+  }
+
+  function showDisruptionList(entry, fromSearch, fromDisruption) {
+    if (!entry) return;
+    setNavigationOrigin(fromSearch, fromDisruption);
+    renderDisruptionList(els, mobileQuery, entry, stampEl);
+    updateControls();
+  }
+
+  function showCurrentDisruptionList() {
+    renderDisruptionList(els, mobileQuery, _getCurrentEntry(), stampEl);
+    updateControls();
+  }
+
+  async function ensureBaseLogsReady() {
+    await ensureLoaded();
+    return isLoaded();
   }
 
   function hydrateInitialEntryState(entry) {
@@ -278,116 +173,6 @@ export function initMobileLogs() {
     updateControls();
   }
 
-  // === CLICK HANDLERS ===
-
-  textEl.addEventListener('click', (e) => {
-    const titleTarget = e.target?.closest?.('.mobile-active-log-title');
-    if (titleTarget) {
-      if (mobileQuery.matches) {
-        e.preventDefault();
-        renderDisruptionList(els, mobileQuery, _getCurrentEntry(), stampEl);
-        updateControls();
-        return;
-      }
-      const linkTarget = e.target?.closest?.(".mobile-active-log-link[data-open-disruption-list='1']");
-      if (linkTarget) {
-        e.preventDefault();
-        renderDisruptionList(els, mobileQuery, _getCurrentEntry(), stampEl);
-        updateControls();
-        return;
-      }
-    }
-
-    const item = e.target?.closest?.('.mobile-disruption-item[data-log-id]');
-    if (!item) return;
-    e.preventDefault();
-    const logId = utils.normalizeId(item.getAttribute('data-log-id'));
-    if (!logId) return;
-    const entry = getLogsById().get(logId);
-    if (entry) {
-      setFromSearch(false);
-      setFromDisruption(true);
-      renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, updateControls);
-    }
-  });
-
-  textEl.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    if (!mobileQuery.matches) return;
-    const target = e.target?.closest?.(".mobile-active-log-title[data-open-disruption-list='1']");
-    if (!target) return;
-    e.preventDefault();
-    renderDisruptionList(els, mobileQuery, _getCurrentEntry(), stampEl);
-    updateControls();
-  });
-
-  // === DISRUPTION NODE CLICKS ===
-
-  if (disruptionNodesRoot) {
-    disruptionNodesRoot.addEventListener('click', async (e) => {
-      const link = e.target?.closest?.('a.log-line[href]');
-      if (!link) return;
-      const slug = disruptionSlugFromHref(link.getAttribute('href'));
-      if (!slug) return;
-
-      e.preventDefault();
-      await ensureLoaded();
-      if (!isLoaded()) return;
-
-      const entry = pickEntryForDisruptionSlug(slug);
-      if (!entry) return;
-      setCurrentEntryId(utils.normalizeId(entry.id));
-      setFromSearch(false);
-      setFromDisruption(false);
-      renderDisruptionList(els, mobileQuery, entry, stampEl);
-      updateControls();
-    });
-  }
-
-  // === RECENT LOG CLICKS ===
-
-  if (recentLogsRoot) {
-    recentLogsRoot.addEventListener('click', async (e) => {
-      const link = e.target?.closest?.('a.log-line[href]');
-      if (!link) return;
-      const logId = logIdFromHref(link.getAttribute('href'));
-      if (!logId) return;
-
-      e.preventDefault();
-      await ensureLoaded();
-      if (!isLoaded()) return;
-
-      const entry = getLogsById().get(logId);
-      if (!entry) return;
-      setCurrentEntryId(logId);
-      setFromSearch(false);
-      setFromDisruption(false);
-      renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, updateControls);
-    });
-  }
-
-  if (backFromSearchBtn) {
-    backFromSearchBtn.addEventListener('click', async () => {
-      if (isFromSearch()) {
-        await openScan(els, mobileQuery);
-        updateControls();
-        return;
-      }
-      if (!isFromDisruption()) return;
-      setFromSearch(false);
-      setFromDisruption(false);
-      renderDisruptionList(els, mobileQuery, _getCurrentEntry(), stampEl);
-      updateControls();
-    }, { passive: true });
-  }
-  if (mobileNav) {
-    mobileNav.addEventListener('dblclick', (e) => {
-      const btn = e.target?.closest?.('.mobile-log-nav-btn');
-      if (!btn) return;
-      e.preventDefault();
-    }, { passive: false });
-  }
-
   async function handleIndexTabClick(e) {
     const link = e.target?.closest?.('a[data-tab]');
     if (!link) return;
@@ -402,30 +187,127 @@ export function initMobileLogs() {
       return;
     }
 
-    await ensureLoaded();
-    if (!isLoaded()) return;
+    if (!(await ensureBaseLogsReady())) return;
 
     if (tab === 'disruption') {
-      const latestDisruption = getLatestDisruptionEntry();
+      const latestDisruption = navController.getLatestDisruptionEntry();
       if (!latestDisruption) return;
-      setFromSearch(false);
-      setFromDisruption(false);
-      renderDisruptionList(els, mobileQuery, latestDisruption, stampEl);
-      updateControls();
+      showDisruptionList(latestDisruption, false, false);
       return;
     }
 
-    setFromSearch(false);
-    setFromDisruption(false);
+    setNavigationOrigin(false, false);
     renderOutputView();
   }
 
-  if (mobileIndexNav) {
-    mobileIndexNav.addEventListener('click', handleIndexTabClick);
+  function bindTextHandlers() {
+    textEl.addEventListener('click', (e) => {
+      const titleTarget = e.target?.closest?.('.mobile-active-log-title');
+      if (titleTarget) {
+        if (mobileQuery.matches) {
+          e.preventDefault();
+          showCurrentDisruptionList();
+          return;
+        }
+        const linkTarget = e.target?.closest?.(".mobile-active-log-link[data-open-disruption-list='1']");
+        if (linkTarget) {
+          e.preventDefault();
+          showCurrentDisruptionList();
+          return;
+        }
+      }
+
+      const item = e.target?.closest?.('.mobile-disruption-item[data-log-id]');
+      if (!item) return;
+      e.preventDefault();
+      const logId = utils.normalizeId(item.getAttribute('data-log-id'));
+      if (!logId) return;
+      const entry = getLogsById().get(logId);
+      showEntry(entry, false, true);
+    });
+
+    textEl.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      if (!mobileQuery.matches) return;
+      const target = e.target?.closest?.(".mobile-active-log-title[data-open-disruption-list='1']");
+      if (!target) return;
+      e.preventDefault();
+      showCurrentDisruptionList();
+    });
   }
-  if (desktopIndexNav) {
-    desktopIndexNav.addEventListener('click', handleIndexTabClick);
+
+  function bindRootLinkHandlers() {
+    if (disruptionNodesRoot) {
+      disruptionNodesRoot.addEventListener('click', async (e) => {
+        const link = e.target?.closest?.('a.log-line[href]');
+        if (!link) return;
+        const slug = disruptionSlugFromHref(link.getAttribute('href'));
+        if (!slug) return;
+
+        e.preventDefault();
+        if (!(await ensureBaseLogsReady())) return;
+
+        const entry = pickEntryForDisruptionSlug(slug);
+        if (!entry) return;
+        setCurrentEntryId(utils.normalizeId(entry.id));
+        showDisruptionList(entry, false, false);
+      });
+    }
+
+    if (recentLogsRoot) {
+      recentLogsRoot.addEventListener('click', async (e) => {
+        const link = e.target?.closest?.('a.log-line[href]');
+        if (!link) return;
+        const logId = logIdFromHref(link.getAttribute('href'));
+        if (!logId) return;
+
+        e.preventDefault();
+        if (!(await ensureBaseLogsReady())) return;
+
+        const entry = getLogsById().get(logId);
+        if (!entry) return;
+        setCurrentEntryId(logId);
+        showEntry(entry, false, false);
+      });
+    }
   }
+
+  function bindBackAndNavGuards() {
+    if (backFromSearchBtn) {
+      backFromSearchBtn.addEventListener('click', async () => {
+        if (isFromSearch()) {
+          await openScan(els, mobileQuery);
+          updateControls();
+          return;
+        }
+        if (!isFromDisruption()) return;
+        showDisruptionList(_getCurrentEntry(), false, false);
+      }, { passive: true });
+    }
+
+    if (mobileNav) {
+      mobileNav.addEventListener('dblclick', (e) => {
+        const btn = e.target?.closest?.('.mobile-log-nav-btn');
+        if (!btn) return;
+        e.preventDefault();
+      }, { passive: false });
+    }
+  }
+
+  function bindIndexTabs() {
+    if (mobileIndexNav) {
+      mobileIndexNav.addEventListener('click', handleIndexTabClick);
+    }
+    if (desktopIndexNav) {
+      desktopIndexNav.addEventListener('click', handleIndexTabClick);
+    }
+  }
+
+  bindTextHandlers();
+  bindRootLinkHandlers();
+  bindBackAndNavGuards();
+  bindIndexTabs();
+
   // === SUB-MODULE INIT ===
 
   initGestureListeners(els, mobileQuery, stampEl, recentLogsRoot, updateControls, _getCurrentEntry);
@@ -452,8 +334,7 @@ export function initMobileLogs() {
     if (currentId) {
       const entry = getLogsById().get(currentId);
       if (!entry) return;
-      setFromSearch(false);
-      setFromDisruption(false);
+      setNavigationOrigin(false, false);
       if (!hydrateInitialEntryState(entry)) {
         renderEntry(els, mobileQuery, entry, stampEl, recentLogsRoot, updateControls);
       }
@@ -463,3 +344,4 @@ export function initMobileLogs() {
 
   updateControls();
 }
+
