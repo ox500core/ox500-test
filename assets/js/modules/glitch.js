@@ -90,6 +90,16 @@ function clearTimer(timerId) {
   return null;
 }
 
+function afterFirstPaint(callback) {
+  if (typeof window.requestAnimationFrame !== 'function') {
+    window.setTimeout(callback, 0);
+    return;
+  }
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(callback);
+  });
+}
+
 export function initGlitch() {
   const prefersReduced =
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -302,7 +312,9 @@ export function initGlitch() {
 
   const initialPhase = normalizePhase(document.body?.dataset?.systemPhase);
   currentPhase = initialPhase;
-  if (phaseProfile().enabled) {
-    scheduleNextPulse(nextPulseDelayMs());
-  }
+  afterFirstPaint(() => {
+    if (phaseProfile().enabled) {
+      scheduleNextPulse(nextPulseDelayMs());
+    }
+  });
 }

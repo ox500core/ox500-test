@@ -6,6 +6,16 @@ import { bus } from '../core/event-bus.js';
 import { createDiagnosticsModel } from './diagnostics-state.js';
 import { initDiagnosticsView, renderDiagnostics, applyDiagnosticsPulse } from './diagnostics-view.js';
 
+function afterFirstPaint(callback) {
+  if (typeof window.requestAnimationFrame !== 'function') {
+    window.setTimeout(callback, 0);
+    return;
+  }
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(callback);
+  });
+}
+
 export function initDiagnostics() {
   const panel = document.getElementById('rightBlock1');
   if (!panel) return;
@@ -48,16 +58,21 @@ export function initDiagnostics() {
     model.onBootComplete();
   });
 
+  let active = false;
   bus.on('tick', () => {
+    if (!active) return;
     const now = Date.now();
     const density = model.tick(now);
     renderDiagnostics(view, model.getRenderSnapshot(density));
     bus.emit('diagnostics:update', model.getDiagnosticsPayload(density));
   });
 
-  pulseTimer = applyDiagnosticsPulse(panel, false, pulseTimer);
-  bus.emit('system:phase', { phase: model.getPhase() });
-  const initialDensity = model.eventDensity();
-  renderDiagnostics(view, model.getRenderSnapshot(initialDensity));
-  bus.emit('diagnostics:update', model.getDiagnosticsPayload(initialDensity));
+  afterFirstPaint(() => {
+    active = true;
+    pulseTimer = applyDiagnosticsPulse(panel, false, pulseTimer);
+    bus.emit('system:phase', { phase: model.getPhase() });
+    const initialDensity = model.eventDensity();
+    renderDiagnostics(view, model.getRenderSnapshot(initialDensity));
+    bus.emit('diagnostics:update', model.getDiagnosticsPayload(initialDensity));
+  });
 }
