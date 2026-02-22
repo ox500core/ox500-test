@@ -1,4 +1,5 @@
 ﻿import json
+import os
 import re
 import shutil
 import filecmp
@@ -70,6 +71,8 @@ class SiteContext:
     site_title: str
     available_count: str
     asset_version: str
+    site_mode: str
+    robots_meta: str
 
 # =========================================================
 # FALLBACK TEMPLATES
@@ -83,8 +86,7 @@ FALLBACK_DISRUPTION_TEMPLATE = """<!DOCTYPE html>
   <meta http-equiv="Content-Language" content="{{LANG}}" />
 
   <meta name="description" content="{{DESCRIPTION}}" />
-  <meta name="robots" content="noindex, nofollow, noarchive" />
-  <meta name="googlebot" content="noindex, nofollow, noarchive" />
+  {{ROBOTS_META}}
 
   <link rel="canonical" href="{{CANONICAL}}" />
   <link rel="source" href="{{GITHUB}}">
@@ -897,7 +899,8 @@ def run_checked_process(cmd: list[str], *, error_label: str) -> subprocess.Compl
 def stage_minify_css() -> None:
     css_main = ASSETS_SRC / "css" / "style.css"
     css_core = ASSETS_SRC / "css" / "style-core.css"
-    css_src = css_core if css_core.exists() else css_main
+    css_entry = ASSETS_SRC / "css" / "style-core.entry.css"
+    css_src = css_entry if css_entry.exists() else (css_core if css_core.exists() else css_main)
     css_dst = ASSETS_CSS_DIST
 
     if not css_src.exists():
@@ -909,6 +912,8 @@ def stage_minify_css() -> None:
     run_checked_process(
         ["node", "node_modules/esbuild/bin/esbuild",
          str(css_src),
+         "--bundle",
+         "--external:*.woff2",
          "--minify",
          f"--outfile={css_dst}"],
         error_label="CSS minify failed",
@@ -957,6 +962,10 @@ def stage_prepare_output() -> None:
             shutil.copytree(ASSETS_SRC, ASSETS_DIST, dirs_exist_ok=True)
         else:
             copy_tree_if_changed(ASSETS_SRC, ASSETS_DIST)
+        css_dist_dir = ASSETS_DIST / "css"
+        if css_dist_dir.exists():
+            shutil.rmtree(css_dist_dir)
+        css_dist_dir.mkdir(parents=True, exist_ok=True)
 
     if ICONS_SRC.exists():
         for p in ICONS_SRC.iterdir():
@@ -1207,6 +1216,7 @@ def stage_build_log_pages(
                 "GITHUB": ctx.github_repo,
                 "BASE_URL": ctx.base_url,
                 "ASSET_VERSION": ctx.asset_version,
+                "ROBOTS_META": ctx.robots_meta,
             },
             template_name="template-log.html",
             context=f"log_id={log['id']} output={rel_path.as_posix()}",
@@ -1343,6 +1353,7 @@ def stage_build_disruption_pages(
                 "SENSOR_LABEL": sensor_label,
                 "SENSOR_CODE": sensor_code,
                 "ASSET_VERSION": ctx.asset_version,
+                "ROBOTS_META": ctx.robots_meta,
             },
             template_name=node_template_name,
             context=f"disruption_slug={d_slug} output={rel_path.as_posix()}",
@@ -1615,6 +1626,7 @@ def stage_render_homepage(
             "NEXT_LOG_UTC": next_log_utc,
             "ASSET_VERSION": ctx.asset_version,
             "INLINE_CSS_HOME": inline_css_home,
+            "ROBOTS_META": ctx.robots_meta,
         },
         template_name="template-index.html",
         context="output=index.html",
@@ -1663,11 +1675,17 @@ def stage_build_home_and_exports(
     )
 
 
-def stage_write_robots_and_sitemap(base_url: str, logs_sorted: list, sitemap_entries: list) -> None:
-    write_text(
-        DIST / "robots.txt",
-        f"User-agent: *\nDisallow: /\n\nSitemap: {base_url}/sitemap.xml\n",
-    )
+def stage_write_robots_and_sitemap(base_url: str, logs_sorted: list, sitemap_entries: list, site_mode: str) -> None:
+    robots_lines = ["User-agent: *"]
+    if site_mode == "prod":
+        robots_lines.append("Allow: /")
+        if base_url:
+            robots_lines.append(f"Sitemap: {base_url}/sitemap.xml")
+    else:
+        robots_lines.append("Disallow: /")
+        if base_url:
+            robots_lines.append(f"Sitemap: {base_url}/sitemap.xml")
+    write_text(DIST / "robots.txt", "\n".join(robots_lines) + "\n")
 
     if logs_sorted:
         homepage_lastmod = normalize_date(logs_sorted[0].get("date", utc_today_iso()))
@@ -1702,6 +1720,17 @@ def stage_write_robots_and_sitemap(base_url: str, logs_sorted: list, sitemap_ent
 
 def build():
     stage_prepare_output()
+    site_mode = str(os.environ.get("SITE_MODE", "test")).strip().lower()
+    if site_mode not in {"test", "prod"}:
+        print(f"WARN: unsupported SITE_MODE='{site_mode}', defaulting to test")
+        site_mode = "test"
+    robots_meta = (
+        '<meta name="robots" content="index, follow" />\n'
+        '  <meta name="googlebot" content="index, follow" />'
+        if site_mode == "prod"
+        else '<meta name="robots" content="noindex, nofollow, noarchive" />\n'
+             '  <meta name="googlebot" content="noindex, nofollow, noarchive" />'
+    )
     stage_minify_css()
     stage_bundle_js()
     source = stage_load_and_validate_source()
@@ -1738,6 +1767,8 @@ def build():
         site_title=site.get("site_title", "OX500 // CORE INTERFACE"),
         available_count=available_count,
         asset_version=asset_version,
+        site_mode=site_mode,
+        robots_meta=robots_meta,
     )
 
     sitemap_entries = []
@@ -1797,7 +1828,7 @@ def build():
         disruption_rel=disruption_rel,
     )
 
-    stage_write_robots_and_sitemap(ctx.base_url, logs_sorted, sitemap_entries)
+    stage_write_robots_and_sitemap(ctx.base_url, logs_sorted, sitemap_entries, ctx.site_mode)
 
     if seo_warnings:
         for warning in seo_warnings:

@@ -1,0 +1,235 @@
+@media (min-width:981px) and (max-height:900px){
+  #recentLogsPanel .bd,#disruptionNodesPanel .bd{
+    padding-top:var(--space-4);
+    padding-bottom:var(--space-4);
+  }
+  .recent-logs .recent-log-next{
+    margin-top:var(--space-2);
+  }
+}
+
+#rightBlock1{
+  white-space:pre-wrap;
+  overflow:hidden;
+  text-overflow:clip;
+  word-break:normal;
+  overflow-wrap:normal;
+  transition:filter .22s ease, opacity .22s ease;
+}
+#rightBlock1 .diag-line{
+  display:block;
+  line-height:1.55;
+}
+#rightBlock1 .log-line.naked,
+#rightBlock1 .log-line.naked:hover,
+#rightBlock1 .log-line.naked:focus-visible{
+  cursor:default;
+  opacity:.78;
+  text-decoration:none;
+  color:inherit;
+  box-shadow:none;
+  border-color:transparent;
+  outline:none;
+}
+#rightBlock1 .diag-line + .diag-line{
+  margin-top:var(--space-1);
+}
+#rightBlock1 .diag-phase-value{font-weight:600;}
+#rightBlock1 .diag-phase-value.diag-phase-nominal{color:var(--cyan);}
+#rightBlock1 .diag-phase-value.diag-phase-unstable{color:rgba(170,193,168,.94);}
+#rightBlock1 .diag-phase-value.diag-phase-incident{color:rgba(255,158,126,.98);}
+#rightBlock1.diag-pulse{filter:brightness(1.08);}
+
+#rightBlock2{
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-3);
+  line-height:1.35;
+}
+#rightBlock2 .log-line.naked{
+  margin:0;
+  padding:0;
+}
+
+.nav-home,.nav-prev,.nav-next{
+  display:inline-flex;
+  align-items:center;
+  gap:var(--space-4);
+  padding:var(--space-6) var(--space-7);
+  border-radius:999px;
+  border:1px solid rgba(var(--ink-rgb),.18);
+  background:rgba(var(--black-rgb),.18);
+  color:rgba(var(--ink-rgb),.75);
+  text-decoration:none;
+  letter-spacing:.16em;
+  font-size:12px;
+}
+.nav-home:hover,.nav-prev:hover,.nav-next:hover{
+  border-color:rgba(var(--cyan-rgb),.35);
+  color:rgba(var(--white-rgb),.9);
+  box-shadow:0 0 24px rgba(var(--cyan-rgb),calc(.10 * var(--ui-glow-multiplier,1) * var(--signal-glow-intensity,1)));
+  transform:translateY(-1px);
+}
+.nav-prev,.nav-next{border-color:rgba(var(--nav-accent-rgb),.35);color:rgba(var(--nav-accent-rgb),.88);}
+.nav-prev:hover,.nav-next:hover{
+  background:rgba(var(--nav-accent-rgb),.06);
+  box-shadow:0 0 30px rgba(var(--nav-accent-rgb),calc(.14 * var(--ui-glow-multiplier,1) * var(--signal-glow-intensity,1)));
+}
+
+:where(body[data-layout="shell"]) #activeViewPanel .mobile-log-nav{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:var(--space-7);
+  margin-top:var(--space-6);
+  margin-bottom:var(--space-6);
+  padding-top:var(--space-5);
+  padding-bottom:var(--space-2);
+  border-top:1px solid rgba(var(--ink-rgb),.14);
+}
+:where(body[data-layout="shell"]) #activeViewPanel .mobile-log-nav[hidden]{
+  display:none !important;
+}
+:where(body[data-layout="shell"]) #activeViewPanel .bd.log-text{
+  overflow-anchor:none;
+}
+:where(body[data-layout="shell"]) #activeViewPanel .mobile-log-nav,
+:where(body[data-layout="shell"]) #activeViewPanel .mobile-log-nav-btn{
+  overflow-anchor:none;
+}
+:where(body[data-layout="shell"]) #activeViewPanel .mobile-log-nav-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:0;
+  padding:0;
+  margin:0;
+  background:none;
+  color:rgba(var(--ink-rgb),.52);
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  font:600 12px/1.22 var(--ox-font-mono);
+  letter-spacing:.13em;
+  white-space:nowrap;
+  cursor:pointer;
+  user-select:none;
+  appearance:none;
+  outline:none;
+  position:relative;
+  transform:none;
+  transition:background-color .12s ease,box-shadow .12s ease;
+}
+:where(body[data-layout="shell"]) #activeViewPanel .mobile-log-nav-btn::before,
+:where(body[data-layout="shell"]) #activeViewPanel .mobile-log-nav-btn::after{
+  content:none;
+}
+:where(body[data-layout="shell"]) #activeViewPanel .mobile-log-nav-btn[hidden]{
+  display:none !important;
+}
+:where(body[data-layout="shell"]) #activeViewPanel .mobile-log-nav-btn:hover{
+  color:rgba(var(--white-rgb),.82);
+  text-decoration:none;
+  text-shadow:0 0 8px rgba(var(--cyan-rgb),.08);
+  box-shadow:none;
+}
+:where(body[data-layout="shell"]) #activeViewPanel .mobile-log-nav-btn:active{
+  box-shadow:none;
+}
+:where(body[data-layout="shell"]) #activeViewPanel .mobile-log-nav-btn:focus-visible{
+  outline:1px solid rgba(var(--ink-rgb),.20);
+  outline-offset:2px;
+}
+:where(body[data-layout="shell"]) #activeViewPanel .mobile-log-nav-btn.disabled,
+:where(body[data-layout="shell"]) #activeViewPanel .mobile-log-nav-btn:disabled{
+  color:rgba(var(--ink-rgb),.28);
+  box-shadow:none;
+  cursor:default;
+  text-decoration:none;
+}
+
+a{color:rgba(var(--link-rgb),.86);}
+a:hover{color:rgba(var(--link-hover-rgb),.92);}
+a:focus-visible{
+  outline:1px solid rgba(var(--link-focus-rgb),.35);
+  outline-offset:2px;
+  text-shadow:0 0 10px rgba(var(--link-focus-rgb),.14);
+}
+
+.live-feed-inline{
+  position:absolute;
+  top:var(--space-4);
+  left:var(--space-5);
+  z-index:var(--z-hud);
+  display:flex;
+  align-items:center;
+  gap:var(--space-5);
+  padding:0 var(--space-2);
+  height:var(--space-8);
+  max-width:520px;
+}
+.live-feed-label{font-size:10px;letter-spacing:.2em;color:var(--ox-text-dim);}
+.live-feed-line{
+  font-family:var(--ox-font-mono);
+  font-size:11px;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  max-width:300px;
+}
+
+.render-ok-badge{
+  position:absolute;
+  right:var(--space-8);
+  top:var(--space-6);
+  z-index:var(--z-badge);
+  font:11px/1.1 ui-monospace,monospace;
+  letter-spacing:.14em;
+  color:rgba(var(--white-rgb),.65);
+  opacity:.9;
+  border:1px solid rgba(var(--white-rgb),.10);
+  border-radius:999px;
+  padding:var(--space-3) var(--space-5);
+  background:rgba(var(--black-rgb),.28);
+}
+
+.noscript-notice{
+  position:fixed;
+  left:var(--space-6);
+  right:var(--space-6);
+  bottom:var(--space-6);
+  padding:var(--space-5) var(--space-6);
+  border:1px solid rgba(var(--white-rgb),.12);
+  border-radius:12px;
+  background:rgba(0,0,0,.72);
+  color:#ccc;
+  font-family:ui-monospace,monospace;
+  z-index:var(--z-notice);
+}
+
+#boot-layer{
+  position:fixed;
+  inset:0;
+  background:#000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:var(--ox-font-mono);
+  letter-spacing:.2em;
+  z-index:var(--z-boot);
+  transition:opacity .3s ease;
+}
+#boot-layer.is-hidden{
+  opacity:0;
+  pointer-events:none;
+}
+#boot-layer.is-gone{
+  display:none;
+}
+
+/* Mobile performance mode: remove expensive paint layers during first render. */

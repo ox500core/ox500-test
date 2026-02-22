@@ -1900,6 +1900,11 @@ a:focus-visible{
 }
 /* Mobile overrides â€“ poĹ‚Ä…czony padding z buforem */
 @media (max-width:980px){
+  :where(body[data-layout="shell"]) #overlayLayer,
+  :where(body[data-layout="shell"]) #overlayLayer.incident-overlay{
+    -webkit-backdrop-filter:none;
+    backdrop-filter:none;
+  }
   :where(body[data-layout="shell"]) .topbar{
     flex-direction:row;
     align-items:center;

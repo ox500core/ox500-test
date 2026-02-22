@@ -1,0 +1,199 @@
+/* =========================================================
+   OX500 STATION - unified interface layer
+   ========================================================= */
+
+@font-face{
+  font-family:"IBM Plex Mono";
+  font-style:normal;
+  font-weight:400;
+  font-display:swap;
+  src:local("IBM Plex Mono"), url("/assets/fonts/ibm-plex-mono-latin-400.woff2") format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face{
+  font-family:"IBM Plex Mono";
+  font-style:normal;
+  font-weight:400;
+  font-display:swap;
+  src:local("IBM Plex Mono"), url("/assets/fonts/ibm-plex-mono-latin-ext-400.woff2") format("woff2");
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face{
+  font-family:"IBM Plex Mono";
+  font-style:normal;
+  font-weight:600;
+  font-display:swap;
+  src:local("IBM Plex Mono SemiBold"),local("IBM Plex Mono"),url("/assets/fonts/ibm-plex-mono-latin-600.woff2") format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face{
+  font-family:"IBM Plex Mono";
+  font-style:normal;
+  font-weight:600;
+  font-display:swap;
+  src:local("IBM Plex Mono SemiBold"),local("IBM Plex Mono"),url("/assets/fonts/ibm-plex-mono-latin-ext-600.woff2") format("woff2");
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+:root {
+  /* =========================================================
+     SYSTEM PHASE STATE (OX500)
+     Sterowanie na tagu <html>:
+     data-phase="nominal" | "unstable" | "incident"
+     ========================================================= */
+  --phase-bg: #040806;
+  --phase-panel: #09120d;
+  --phase-ink: #c4e9d1;
+  --phase-ink-dim: #6e957b;
+  --phase-cyan: #8fd9af;
+  --phase-amber: #52cf8f;
+  --phase-cyan-rgb: 143,217,175;
+  --phase-amber-rgb: 82,207,143;
+  --phase-ink-rgb: 159,203,175;
+  --phase-overlay-mult: .74;
+
+  --bg: var(--phase-bg);
+  --panel: var(--phase-panel);
+  --ink: var(--phase-ink);
+  --ink-dim: var(--phase-ink-dim);
+  --cyan: var(--phase-cyan);
+  --amber: var(--phase-amber);
+  --shadow: rgba(0,0,0,.65);
+  --radius: 14px;
+  --radius-sm: 10px;
+  --mono: "IBM Plex Mono","JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+  --nav-btn-h: 26px;
+
+  --crt-scanline: rgba(255,255,255,.035);
+
+  --pad: clamp(14px,2.6vw,26px);
+  --gap: clamp(10px,1.8vw,18px);
+
+  --title-size: clamp(34px,6.2vw,78px);
+  --title-tracking: clamp(6px,1.4vw,16px);
+  --ox-text-main: var(--ink);
+  --ox-accent: var(--cyan);
+  --ox-font-mono: var(--mono);
+  --ox-text-dim: var(--ink-dim);
+
+  --home-reserve: clamp(220px, 18vh, 280px);
+  --home-hero-scale: 1.2;
+  --home-hero-pad-y: calc(var(--space-2) * 0.9 * var(--home-hero-scale));
+  --home-hero-title-size: calc(var(--title-size) * 0.31 * var(--home-hero-scale));
+  --home-hero-title-tracking: calc(var(--title-tracking) * 0.27 * var(--home-hero-scale));
+  --home-hero-status-gap: calc(var(--space-2) * 0.9 * var(--home-hero-scale));
+  --home-hero-status-line-size: calc(9px * var(--home-hero-scale));
+  --home-hero-controls-margin-top: calc(var(--space-4) * 0.9 * var(--home-hero-scale));
+
+  /* Global diegetic environment controls (phase-driven) */
+  --ui-brightness: 1;
+  --ui-contrast: 1;
+  --ui-saturation: 1;
+  --ui-glow-multiplier: 1;
+  --ui-ambient-opacity: 1;
+  --ui-noise-opacity: 1;
+  --ui-cool-tint: 1;
+  --ui-warm-tint: 1;
+
+  --signal-noise-opacity: 0.03;
+  --signal-scanline-opacity: 0.04;
+  --signal-glow-intensity: 1;
+  --signal-flicker-strength: 0;
+  --signal-contrast-drift: 0;
+
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 10px;
+  --space-6: 12px;
+  --space-7: 14px;
+  --space-8: 16px;
+  --space-9: 20px;
+  --space-10: 24px;
+  --space-11: 32px;
+
+  /* Kolory pochodne amberu (bez zmiennej RGB â€“ staĹ‚e odcienie) */
+  --amber-muted: rgba(255,192,160,.72);   /* nieaktywny stan toggle / scan-off */
+  --amber-hover: rgba(255,222,198,.98);   /* hover / aktywny stan na tle ciemnym */
+
+  /* RGB channels â€“ jednopunktowa zmiana palety */
+  --cyan-rgb: var(--phase-cyan-rgb);
+  --amber-rgb: var(--phase-amber-rgb);
+  --ink-rgb: var(--phase-ink-rgb);
+  --link-rgb: var(--phase-cyan-rgb);
+  --link-hover-rgb: var(--phase-ink-rgb);
+  --link-focus-rgb: var(--phase-cyan-rgb);
+  --nav-accent-rgb: var(--phase-amber-rgb);
+  --black-rgb: 0,0,0;
+  --white-rgb: 255,255,255;
+
+  /* Podstawowe staĹ‚e */
+  --border: rgba(var(--ink-rgb), .16);
+  --border-2: rgba(var(--ink-rgb), .10);
+  --grid: var(--border-2);             /* = --border-2 â€” jedno ĹşrĂłdĹ‚o prawdy */
+
+  /* Z-index scale */
+  --z-bg: 0;
+  --z-content: 1;
+  --z-fx: 3;             /* body::after â€” efekty CRT / szum */
+  --z-overlay: 4;
+  --z-badge: 9;          /* render-ok-badge */
+  --z-hud: 10;           /* live-feed-inline */
+  --z-nav-fixed: 40;     /* home-hero fixed na mobile */
+  --z-nav-float: 45;     /* mobile-log-nav overlay */
+  --z-modal: 80;
+  --z-notice: 999;       /* noscript-notice */
+  --z-boot: 9999;
+}
+
+:root[data-phase="nominal"]{
+  --phase-bg: #040806;
+  --phase-panel: #09120d;
+  --phase-ink: #c4e9d1;
+  --phase-ink-dim: #6e957b;
+  --phase-cyan: #8fd9af;
+  --phase-amber: #52cf8f;
+  --phase-cyan-rgb: 143,217,175;
+  --phase-amber-rgb: 82,207,143;
+  --phase-ink-rgb: 159,203,175;
+  --link-rgb: 143,217,175;
+  --link-hover-rgb: 196,233,209;
+  --link-focus-rgb: 143,217,175;
+  --nav-accent-rgb: 82,207,143;
+  --phase-overlay-mult: .74;
+}
+
+:root[data-phase="unstable"]{
+  --phase-bg: #050708;
+  --phase-panel: #070b0e;
+  --phase-ink: #c5ddd4;
+  --phase-ink-dim: #748a84;
+  --phase-cyan: #88ccab;
+  --phase-amber: #aa8a73;
+  --phase-cyan-rgb: 136,204,171;
+  --phase-amber-rgb: 170,138,115;
+  --phase-ink-rgb: 197,221,212;
+  --link-rgb: 142,206,180;
+  --link-hover-rgb: 193,222,209;
+  --link-focus-rgb: 129,196,169;
+  --nav-accent-rgb: 150,184,160;
+  --phase-overlay-mult: .78;
+}
+
+:root[data-phase="incident"]{
+  --phase-bg: #070504;
+  --phase-panel: #0b0706;
+  --phase-ink: #ffd2c7;
+  --phase-ink-dim: #d19a8d;
+  --phase-cyan: #ff9e7a;
+  --phase-amber: #ff3b1f;
+  --phase-cyan-rgb: 255,158,122;
+  --phase-amber-rgb: 255,59,31;
+  --phase-ink-rgb: 255,210,199;
+  --link-rgb: 255,174,144;
+  --link-hover-rgb: 255,215,201;
+  --link-focus-rgb: 255,140,104;
+  --nav-accent-rgb: 255,114,76;
+  --phase-overlay-mult: .72;
+}

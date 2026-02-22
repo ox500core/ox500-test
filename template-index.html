@@ -6,8 +6,7 @@
   <meta name="theme-color" content="#050608" />
   <title>{{SITE_TITLE}} // STATION</title>
   <meta name="description" content="OX500 STATION &mdash; system interface. Archive access is conditional. The logs remain." />
-  <meta name="robots" content="noindex, nofollow, noarchive" />
-  <meta name="googlebot" content="noindex, nofollow, noarchive" />
+  {{ROBOTS_META}}
 
   <link rel="canonical" href="{{CANONICAL}}" />
   <link rel="sitemap" type="application/xml" href="{{SITEMAP_URL}}" />
@@ -23,8 +22,8 @@
   <meta name="twitter:description" content="System interface. Archive access is conditional. The logs remain." />
   <meta name="twitter:image" content="{{OG_IMAGE}}" />
 
-  <link rel="preload" href="/assets/fonts/ibm-plex-mono-latin-400.woff2" as="font" type="font/woff2" />
-  <link rel="preload" href="/assets/fonts/ibm-plex-mono-latin-600.woff2" as="font" type="font/woff2" />
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-latin-400.woff2" as="font" type="font/woff2"  crossorigin/>
+  <link rel="preload" href="/assets/fonts/ibm-plex-mono-latin-600.woff2" as="font" type="font/woff2"  crossorigin/>
 
   <style id="criticalHomeCss">{{INLINE_CSS_HOME}}</style>
   <script type="application/ld+json">{{DISRUPTION_SERIES_JSONLD}}</script>
@@ -196,54 +195,6 @@
       JS is disabled &mdash; interface runs in static mode.
     </div>
   </noscript>
-
-  <script>
-    (function () {
-      var stamp = document.getElementById("topbarLogStamp");
-      var scanBtn = document.getElementById("scanModeBtn");
-      var scanWrap = document.getElementById("avScan");
-      var modeSwitch = document.getElementById("activeViewModeSwitch");
-      var activeViewPanel = document.getElementById("activeViewPanel");
-      var activeViewBody = activeViewPanel ? activeViewPanel.querySelector(".bd") : null;
-      var topbarLeft = document.querySelector(".topbar .left");
-      var activeViewHeader = document.querySelector("#activeViewPanel .hd");
-      if (!stamp || !topbarLeft || !activeViewHeader || !scanBtn || !modeSwitch || !scanWrap || !activeViewPanel || !activeViewBody) return;
-
-      var mobileQuery = window.matchMedia("(max-width: 980px)");
-      var optionalLeftPill = topbarLeft.querySelector(".optional.deep");
-
-      function moveNode(node, parent, beforeNode) {
-        if (!node || !parent) return;
-        if (node.parentElement === parent && (!beforeNode || node.nextSibling === beforeNode)) return;
-        parent.insertBefore(node, beforeNode || null);
-      }
-
-      function placeStamp() {
-        moveNode(scanBtn, modeSwitch);
-        moveNode(scanWrap, activeViewPanel, activeViewBody);
-
-        if (mobileQuery.matches) {
-          moveNode(stamp, activeViewHeader);
-          scanBtn.classList.remove("mobile-topbar-scan");
-          stamp.classList.add("mobile-activeview-log-stamp");
-          return;
-        }
-
-        moveNode(stamp, topbarLeft, optionalLeftPill);
-        scanBtn.classList.remove("mobile-topbar-scan");
-        stamp.classList.remove("mobile-activeview-log-stamp");
-      }
-
-      placeStamp();
-      if (typeof mobileQuery.addEventListener === "function") {
-        mobileQuery.addEventListener("change", placeStamp);
-      } else if (typeof mobileQuery.addListener === "function") {
-        mobileQuery.addListener(placeStamp);
-      }
-      window.addEventListener("orientationchange", placeStamp);
-      window.addEventListener("resize", placeStamp);
-    })();
-  </script>
   <script src="/assets/js/bundle.js?v={{ASSET_VERSION}}" defer></script>
 </main>
 

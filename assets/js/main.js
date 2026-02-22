@@ -1,29 +1,18 @@
-// === OX500 — MAIN ENTRY POINT ===
+// === OX500 - MAIN ENTRY POINT ===
 // esbuild bundles this file into dist/assets/js/bundle.js
-// Import order matters: bus and utils must be ready before features use them.
 
-// === CORE ===
-// (no side effects — imported by feature modules as needed)
-// import './core/event-bus.js';
-// import './core/utils.js';
-// import './core/logs-loader.js';
-
-// === FEATURE MODULES ===
-import { initBoot }        from './modules/boot.js';
-import { initTick }        from './modules/tick.js';
-import { initUptime }      from './modules/uptime.js';
+import { initBoot } from './modules/boot.js';
+import { initTick } from './modules/tick.js';
+import { initUptime } from './modules/uptime.js';
 import { initTopbarStatus } from './modules/topbar-status.js';
 import { initSystemPhaseUi } from './modules/system-phase-ui.js';
 import { initDiagnostics } from './modules/diagnostics.js';
-import { initFeed }        from './modules/feed.js';
-import { initGlitch }      from './modules/glitch.js';
+import { initFeed } from './modules/feed.js';
+import { initGlitch } from './modules/glitch.js';
 import { initAnomalyEngine } from './modules/anomaly-engine.js';
-import { initMobileLogs }  from './modules/mobile-logs/index.js';
+import { initMobileLogs } from './modules/mobile-logs/index.js';
 import { initNextLogLabel } from './modules/next-log-label.js';
-
-// === BOOT ===
-// Run synchronously before DOMContentLoaded where possible,
-// otherwise each init function guards itself.
+import { initLayoutPlacement } from './modules/layout-placement.js';
 
 const CRITICAL_INITIALIZERS = [
   initBoot,
@@ -33,6 +22,7 @@ const CRITICAL_INITIALIZERS = [
   initSystemPhaseUi,
   initMobileLogs,
   initNextLogLabel,
+  initLayoutPlacement,
 ];
 
 const DEFERRED_INITIALIZERS = [
@@ -41,6 +31,7 @@ const DEFERRED_INITIALIZERS = [
   initGlitch,
   initAnomalyEngine,
 ];
+
 const isMobile = window.matchMedia?.('(max-width: 980px), (hover:none) and (pointer:coarse)').matches ?? false;
 
 CRITICAL_INITIALIZERS.forEach((initFn) => {
@@ -50,9 +41,35 @@ CRITICAL_INITIALIZERS.forEach((initFn) => {
 const deferredDelayMs = isMobile ? 2500 : 2800;
 
 function runDeferredInitializers() {
-  DEFERRED_INITIALIZERS.forEach((initFn) => {
+  const tasks = [...DEFERRED_INITIALIZERS];
+  if (!tasks.length) {
+    return;
+  }
+
+  const runOne = (initFn) => {
     initFn();
-  });
+  };
+
+  if (typeof window.requestIdleCallback === 'function') {
+    const runChunk = (deadline) => {
+      while (tasks.length && deadline.timeRemaining() > 0) {
+        runOne(tasks.shift());
+      }
+      if (tasks.length) {
+        window.requestIdleCallback(runChunk, { timeout: 1000 });
+      }
+    };
+    window.requestIdleCallback(runChunk, { timeout: 1000 });
+    return;
+  }
+
+  const runFallbackChunk = () => {
+    runOne(tasks.shift());
+    if (tasks.length) {
+      window.setTimeout(runFallbackChunk, 50);
+    }
+  };
+  runFallbackChunk();
 }
 
 if (typeof window.requestIdleCallback === 'function') {
