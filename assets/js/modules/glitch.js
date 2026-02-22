@@ -160,6 +160,19 @@ export function initGlitch() {
     return { jitterPx: map[intensity] || map.normal || '1.5px' };
   }
 
+  function restartOverlayAnimation(applyFn) {
+    clearClasses();
+    if (typeof window.requestAnimationFrame !== 'function') {
+      applyFn();
+      return;
+    }
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        applyFn();
+      });
+    });
+  }
+
   function runPulse(isEntry) {
     const profile = phaseProfile();
     if (!profile.enabled) return;
@@ -174,32 +187,30 @@ export function initGlitch() {
     const duration = clampDurationMs(rawDuration, profile.burstMs[0], profile.burstMs[1]);
     const vars = intensityVars(intensity, profile);
 
-    clearClasses();
-    // Force reflow so repeated class toggles reliably restart animations.
-    void overlay.offsetWidth;
+    restartOverlayAnimation(() => {
+      overlay.style.setProperty('--incident-burst-ms', `${Math.round(duration)}ms`);
+      overlay.style.setProperty('--incident-jitter-px', vars.jitterPx);
 
-    overlay.style.setProperty('--incident-burst-ms', `${Math.round(duration)}ms`);
-    overlay.style.setProperty('--incident-jitter-px', vars.jitterPx);
+      overlay.classList.add('incident-overlay', `incident-intensity-${intensity}`);
 
-    overlay.classList.add('incident-overlay', `incident-intensity-${intensity}`);
-
-    if (effect === 'scanline-burst') {
-      overlay.classList.add('incident-scanline-burst');
-      title.classList.add('glitch-shift');
-    } else if (effect === 'noise-grain') {
-      overlay.classList.add('incident-noise-grain');
-      status.classList.add('glitch-dim');
-    } else if (effect === 'signal-drop') {
-      overlay.classList.add('incident-signal-drop');
-      status.classList.add('glitch-dim');
-    } else if (effect === 'inverse-flash') {
-      overlay.classList.add('incident-inverse-flash');
-      hero.classList.add('glitch-invert');
-    } else {
-      overlay.classList.add('incident-jitter-pulse');
-      hero.classList.add('incident-jitter-pulse');
-      title.classList.add('glitch-shift');
-    }
+      if (effect === 'scanline-burst') {
+        overlay.classList.add('incident-scanline-burst');
+        title.classList.add('glitch-shift');
+      } else if (effect === 'noise-grain') {
+        overlay.classList.add('incident-noise-grain');
+        status.classList.add('glitch-dim');
+      } else if (effect === 'signal-drop') {
+        overlay.classList.add('incident-signal-drop');
+        status.classList.add('glitch-dim');
+      } else if (effect === 'inverse-flash') {
+        overlay.classList.add('incident-inverse-flash');
+        hero.classList.add('glitch-invert');
+      } else {
+        overlay.classList.add('incident-jitter-pulse');
+        hero.classList.add('incident-jitter-pulse');
+        title.classList.add('glitch-shift');
+      }
+    });
 
     if (profile.emitBus) {
       bus.emit('glitch:trigger', { type: `incident:${effect}` });
@@ -232,30 +243,29 @@ export function initGlitch() {
     const intensity = pickOne(intensityPool);
     const vars = intensityVars(intensity, phaseProfile());
 
-    clearClasses();
-    void overlay.offsetWidth;
+    restartOverlayAnimation(() => {
+      overlay.style.setProperty('--incident-burst-ms', `${Math.round(duration)}ms`);
+      overlay.style.setProperty('--incident-jitter-px', vars.jitterPx);
+      overlay.classList.add('incident-overlay', `incident-intensity-${intensity}`);
 
-    overlay.style.setProperty('--incident-burst-ms', `${Math.round(duration)}ms`);
-    overlay.style.setProperty('--incident-jitter-px', vars.jitterPx);
-    overlay.classList.add('incident-overlay', `incident-intensity-${intensity}`);
-
-    if (effect === 'scanline-burst') {
-      overlay.classList.add('incident-scanline-burst');
-      title.classList.add('glitch-shift');
-    } else if (effect === 'noise-grain') {
-      overlay.classList.add('incident-noise-grain');
-      status.classList.add('glitch-dim');
-    } else if (effect === 'signal-drop') {
-      overlay.classList.add('incident-signal-drop');
-      status.classList.add('glitch-dim');
-    } else if (effect === 'inverse-flash') {
-      overlay.classList.add('incident-inverse-flash');
-      hero.classList.add('glitch-invert');
-    } else {
-      overlay.classList.add('incident-jitter-pulse');
-      hero.classList.add('incident-jitter-pulse');
-      title.classList.add('glitch-shift');
-    }
+      if (effect === 'scanline-burst') {
+        overlay.classList.add('incident-scanline-burst');
+        title.classList.add('glitch-shift');
+      } else if (effect === 'noise-grain') {
+        overlay.classList.add('incident-noise-grain');
+        status.classList.add('glitch-dim');
+      } else if (effect === 'signal-drop') {
+        overlay.classList.add('incident-signal-drop');
+        status.classList.add('glitch-dim');
+      } else if (effect === 'inverse-flash') {
+        overlay.classList.add('incident-inverse-flash');
+        hero.classList.add('glitch-invert');
+      } else {
+        overlay.classList.add('incident-jitter-pulse');
+        hero.classList.add('incident-jitter-pulse');
+        title.classList.add('glitch-shift');
+      }
+    });
 
     burstTimer = clearTimer(burstTimer);
     burstTimer = setTimeout(() => {
